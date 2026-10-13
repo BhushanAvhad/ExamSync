@@ -66,7 +66,7 @@ export function AcademicsPage() {
   // Modals for Subject
   const [isSubjectModalOpen, setIsSubjectModalOpen] = useState(false);
   const [editingSubject, setEditingSubject] = useState(null);
-  const [subjectForm, setSubjectForm] = useState({ id: '', code: '', name: '', applicableClasses: 'CS-Year 1 (A)', duration: '3.0 Hours' });
+  const [subjectForm, setSubjectForm] = useState({ id: '', code: '', name: '', applicableClasses: 'FE (A)', duration: '3.0 Hours' });
   const [subjectErrors, setSubjectErrors] = useState({});
   const [deleteSubjectTarget, setDeleteSubjectTarget] = useState(null);
 
@@ -121,7 +121,7 @@ export function AcademicsPage() {
   const handleClassSubmit = async (e) => {
     e.preventDefault();
     const errors = {};
-    if (!classForm.name.trim()) errors.name = 'Class name is required (e.g. CS-Year 1)';
+    if (!classForm.name.trim()) errors.name = 'Class name is required (e.g. FE, SE CMPN, TE INFT, BE EXTC)';
     if (!classForm.studentCount || Number(classForm.studentCount) <= 0) {
       errors.studentCount = 'Student count must be a positive number';
     }
@@ -177,7 +177,7 @@ export function AcademicsPage() {
   const handleOpenAddSubject = () => {
     const nextId = `SUB-${(subjects.length + 1).toString().padStart(2, '0')}`;
     setEditingSubject(null);
-    setSubjectForm({ id: nextId, code: '', name: '', applicableClasses: 'CS-Year 1 (A)', duration: '3.0 Hours' });
+    setSubjectForm({ id: nextId, code: '', name: '', applicableClasses: 'FE (A)', duration: '3.0 Hours' });
     setSubjectErrors({});
     setIsSubjectModalOpen(true);
   };
@@ -195,7 +195,7 @@ export function AcademicsPage() {
   const handleSubjectSubmit = async (e) => {
     e.preventDefault();
     const errors = {};
-    if (!subjectForm.code.trim()) errors.code = 'Subject code is required (e.g. CS-301)';
+    if (!subjectForm.code.trim()) errors.code = 'Subject code is required (e.g. CSC301, FEC101)';
     if (!subjectForm.name.trim()) errors.name = 'Subject title is required';
     if (Object.keys(errors).length > 0) {
       setSubjectErrors(errors);
@@ -533,7 +533,7 @@ export function AcademicsPage() {
           <Input
             label="Class / Program Name"
             id="class-name"
-            placeholder="e.g. CS-Year 1, EE-Year 2"
+            placeholder="e.g. FE, SE CMPN, TE INFT, BE EXTC"
             value={classForm.name}
             onChange={(e) => setClassForm({ ...classForm, name: e.target.value })}
             error={classErrors.name}
@@ -598,7 +598,7 @@ export function AcademicsPage() {
           <Input
             label="Subject Code"
             id="subject-code"
-            placeholder="e.g. CS-301, MATH-202"
+            placeholder="e.g. FEC101, CSC301, CSC501, CSC701"
             value={subjectForm.code}
             onChange={(e) => setSubjectForm({ ...subjectForm, code: e.target.value })}
             error={subjectErrors.code}
@@ -608,7 +608,7 @@ export function AcademicsPage() {
           <Input
             label="Subject Title"
             id="subject-name"
-            placeholder="e.g. Operating Systems & Kernel Design"
+            placeholder="e.g. Applied Mathematics - I, Theoretical Computer Science"
             value={subjectForm.name}
             onChange={(e) => setSubjectForm({ ...subjectForm, name: e.target.value })}
             error={subjectErrors.name}
@@ -634,7 +634,7 @@ export function AcademicsPage() {
             <Input
               label="Applicable Cohorts (Comma-separated)"
               id="subject-cohorts"
-              placeholder="e.g. CS-Year 1 (A), CS-Year 1 (B)"
+              placeholder="e.g. FE (A), FE (B), TE CMPN (A)"
               value={subjectForm.applicableClasses}
               onChange={(e) => setSubjectForm({ ...subjectForm, applicableClasses: e.target.value })}
             />

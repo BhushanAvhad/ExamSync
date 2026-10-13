@@ -50,16 +50,42 @@ export function StudentTopbar({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const { profile, signOut } = useAuth();
-  const studentName = profile?.full_name || STUDENT_PROFILE.name;
-  const studentEmail = profile?.email || STUDENT_PROFILE.email;
-  const studentInitials = studentName
-    .split(' ')
-    .filter(Boolean)
-    .map((w) => w[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase() || 'ST';
+  const { user, profile, signOut } = useAuth();
+  const [dynProfile, setDynProfile] = useState(null);
+
+  useEffect(() => {
+    async function resolve() {
+      if (user?.id || user?.email) {
+        const res = await studentPortalService.getProfile(user?.id, user?.email, user?.user_metadata);
+        if (res?.data) setDynProfile(res.data);
+      }
+    }
+    resolve();
+  }, [user]);
+
+  const studentName =
+    dynProfile?.name ||
+    profile?.full_name ||
+    user?.user_metadata?.full_name ||
+    (user?.email
+      ? user.email.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+      : 'VIT Student');
+
+  const studentEmail =
+    dynProfile?.email ||
+    profile?.email ||
+    user?.email ||
+    'student@vit.edu.in';
+
+  const studentInitials =
+    dynProfile?.initials ||
+    (studentName
+      .split(' ')
+      .filter(Boolean)
+      .map((w) => w[0])
+      .slice(0, 2)
+      .join('')
+      .toUpperCase() || 'ST');
 
   const handleSignOut = async () => {
     setProfileOpen(false);
@@ -170,7 +196,7 @@ export function StudentTopbar({
             </div>
             <div className="topbar-profile-info">
               <span className="topbar-admin-name">{studentName}</span>
-              <span className="topbar-admin-role">Student Portal</span>
+              <span className="topbar-admin-role">VIT Student</span>
             </div>
             <ChevronDownIcon size={14} className={`topbar-chevron ${profileOpen ? 'is-rotated' : ''}`} />
           </button>

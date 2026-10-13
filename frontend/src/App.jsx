@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { AuthProvider } from './context/AuthContext';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { Navbar } from './components/layout/Navbar';
@@ -37,10 +37,19 @@ function AppRoutes() {
   const [currentPath, setCurrentPath] = useState(
     typeof window !== 'undefined' ? window.location.pathname || '/' : '/'
   );
-  const [theme, setTheme] = useState('dark');
+  const [theme, setTheme] = useState(() => {
+    try {
+      const saved = localStorage.getItem('examsync_theme');
+      if (saved === 'light' || saved === 'dark') return saved;
+    } catch (_) {}
+    return 'dark';
+  });
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
+    try {
+      localStorage.setItem('examsync_theme', theme);
+    } catch (_) {}
   }, [theme]);
 
   useEffect(() => {
@@ -51,17 +60,17 @@ function AppRoutes() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  const navigate = (path) => {
+  const navigate = useCallback((path) => {
     if (window.location.pathname !== path) {
       window.history.pushState({}, '', path);
     }
     setCurrentPath(path);
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  }, []);
 
-  const toggleTheme = () => {
+  const toggleTheme = useCallback(() => {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
-  };
+  }, []);
 
   const isAdminRoute = currentPath.startsWith('/admin') && currentPath !== '/admin-login';
   const isStudentRoute = currentPath.startsWith('/student') && currentPath !== '/student-login';

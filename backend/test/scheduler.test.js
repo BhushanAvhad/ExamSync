@@ -20,19 +20,19 @@ describe('Genetic Algorithm Examination Scheduler', () => {
   };
 
   const sampleRooms = [
-    { id: 'room-101', roomNumber: 'Hall 101', capacity: 100, status: 'Available' },
-    { id: 'room-102', roomNumber: 'Lab 204', capacity: 50, status: 'Available' },
-    { id: 'room-103', roomNumber: 'Auditorium', capacity: 200, status: 'Available' },
+    { id: 'room-101', roomNumber: 'A101', capacity: 100, status: 'Available' },
+    { id: 'room-102', roomNumber: 'B201', capacity: 65, status: 'Available' },
+    { id: 'room-103', roomNumber: 'F101', capacity: 220, status: 'Available' },
   ];
 
   const sampleEvents = [
     {
       id: 'ev-1',
-      subjectId: 'sub-cs101',
-      subjectCode: 'CS-101',
-      subjectName: 'Computer Systems',
+      subjectId: 'sub-fec101',
+      subjectCode: 'FEC101',
+      subjectName: 'Applied Mathematics - I',
       classId: 'cls-1',
-      className: 'CS-Year 1',
+      className: 'FE',
       division: 'A',
       durationMinutes: 180,
       type: 'Core',
@@ -41,11 +41,11 @@ describe('Genetic Algorithm Examination Scheduler', () => {
     },
     {
       id: 'ev-2',
-      subjectId: 'sub-cs201',
-      subjectCode: 'CS-201',
-      subjectName: 'Data Structures',
+      subjectId: 'sub-csc301',
+      subjectCode: 'CSC301',
+      subjectName: 'Applied Mathematics - III',
       classId: 'cls-2',
-      className: 'CS-Year 2',
+      className: 'SE CMPN',
       division: 'A',
       durationMinutes: 180,
       type: 'Core',
@@ -54,11 +54,11 @@ describe('Genetic Algorithm Examination Scheduler', () => {
     },
     {
       id: 'ev-3',
-      subjectId: 'sub-math101',
-      subjectCode: 'MATH-101',
-      subjectName: 'Calculus',
+      subjectId: 'sub-fec104',
+      subjectCode: 'FEC104',
+      subjectName: 'Engineering Mechanics',
       classId: 'cls-1',
-      className: 'CS-Year 1',
+      className: 'FE',
       division: 'A',
       durationMinutes: 180,
       type: 'Core',
@@ -119,7 +119,7 @@ describe('Genetic Algorithm Examination Scheduler', () => {
     const mockTimetable = [
       {
         eventId: 'ev-1',
-        subjectCode: 'CS-101',
+        subjectCode: 'FEC101',
         date: '2026-05-18',
         startTime: '09:00',
         endTime: '12:00',
@@ -128,7 +128,7 @@ describe('Genetic Algorithm Examination Scheduler', () => {
       },
       {
         eventId: 'ev-3',
-        subjectCode: 'MATH-101',
+        subjectCode: 'FEC104',
         date: '2026-05-18', // Same date and time!
         startTime: '09:00',
         endTime: '12:00',
@@ -153,7 +153,7 @@ describe('Genetic Algorithm Examination Scheduler', () => {
     const mockTimetable = [
       {
         eventId: 'ev-1',
-        subjectCode: 'CS-101',
+        subjectCode: 'FEC101',
         date: '2026-05-18',
         startTime: '09:00',
         endTime: '12:00',
@@ -162,7 +162,7 @@ describe('Genetic Algorithm Examination Scheduler', () => {
       },
       {
         eventId: 'ev-2',
-        subjectCode: 'CS-201',
+        subjectCode: 'CSC301',
         date: '2026-05-18',
         startTime: '10:00', // Overlaps with 09:00-12:00 in room-101
         endTime: '13:00',

@@ -125,6 +125,51 @@ export function GenerateTimetablePage({ onNavigate }) {
 
       if (response.ok && response.data.success) {
         setGenerationResult(response.data);
+
+        if (Array.isArray(response.data.timetable) && response.data.timetable.length > 0) {
+          const mapped = response.data.timetable.map((t, idx) => ({
+            id: t.eventId || `TT-GEN-${idx + 1}`,
+            date: t.date,
+            timeSlot: `${t.startTime} — ${t.endTime}`,
+            subjectCode: t.subjectCode || '—',
+            subjectName: t.subjectName || '—',
+            className: t.className || 'All',
+            division: t.division || 'A',
+            room: t.roomNumber || 'TBD',
+            duration: t.durationMinutes ? `${(t.durationMinutes / 60).toFixed(1)} Hours` : '3.0 Hours',
+            status: 'Scheduled',
+            isPublished: true,
+          }));
+
+          const sessionKey = selectedSessionId || 'default';
+          try {
+            localStorage.setItem(`examsync_timetable_data_${sessionKey}`, JSON.stringify(mapped));
+            localStorage.setItem('examsync_timetable_data', JSON.stringify(mapped));
+            localStorage.setItem(`examsync_session_published_${sessionKey}`, JSON.stringify({
+              isPublished: true,
+              timestamp: new Date().toISOString(),
+            }));
+            localStorage.setItem('examsync_session_published_active', JSON.stringify({
+              sessionId: selectedSessionId,
+              isPublished: true,
+            }));
+            localStorage.setItem('examsync_active_timetable_published', JSON.stringify({
+              sessionId: selectedSessionId,
+              isPublished: true,
+            }));
+          } catch (e) {
+            console.error('Failed to save generated timetable to storage:', e);
+          }
+
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('examsync_timetable_updated', {
+              detail: { timetable: mapped, sessionId: selectedSessionId },
+            }));
+            window.dispatchEvent(new CustomEvent('examsync_timetable_published', {
+              detail: { sessionId: selectedSessionId, isPublished: true, timestamp: Date.now() },
+            }));
+          }
+        }
       } else {
         setGenerationError(response.data?.error || 'No feasible zero-conflict schedule found within search limits.');
         setGenerationResult(response.data);

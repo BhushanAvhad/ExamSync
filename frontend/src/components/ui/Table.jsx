@@ -28,7 +28,7 @@ export function Table({
             {columns.map((col) => (
               <th
                 key={col.key}
-                className="table-th"
+                className={`table-th table-th-${col.key}${col.key === 'actions' ? ' no-print' : ''}`}
                 style={{ textAlign: col.align || 'left', width: col.width || 'auto' }}
                 scope="col"
               >
@@ -71,7 +71,7 @@ export function Table({
                   {columns.map((col) => (
                     <td
                       key={col.key}
-                      className="table-td"
+                      className={`table-td table-td-${col.key}${col.key === 'actions' ? ' no-print' : ''}`}
                       style={{ textAlign: col.align || 'left' }}
                     >
                       {col.render ? col.render(row[col.key], row) : row[col.key]}

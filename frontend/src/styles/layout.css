@@ -306,30 +306,43 @@
 }
 
 /* --------------------------------------------------------------------------
-   Single-Screen Landing Page (Section 1 & 16)
+   Landing Page (Multi-Section Responsive Flow)
    -------------------------------------------------------------------------- */
+html {
+  scroll-behavior: smooth;
+}
+
+#home,
+#features,
+#how-it-works,
+#why-examsync,
+#about {
+  scroll-margin-top: 84px;
+}
+
 .app-container.is-landing-screen {
   min-height: 100vh;
-  max-height: 100vh;
-  overflow: hidden;
   display: flex;
   flex-direction: column;
 }
 
-.landing-single-screen-wrapper {
-  flex: 1;
+.landing-page-wrapper {
+  width: 100%;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
+  position: relative;
+}
+
+.landing-single-screen-wrapper {
   width: 100%;
   position: relative;
-  overflow: hidden;
 }
 
 .hero-single-screen {
   position: relative;
   width: 100%;
-  padding: 20px 0;
+  min-height: calc(100vh - 72px);
+  padding: 48px 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -819,9 +832,43 @@
   margin: 0;
 }
 
+.features-filter-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 auto 32px;
+}
+
+.feature-filter-pill {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.feature-filter-pill:hover {
+  border-color: var(--border-hover);
+  color: var(--text-primary);
+  background: var(--surface-hover);
+}
+
+.feature-filter-pill.active {
+  background: rgba(99, 102, 241, 0.15);
+  border-color: var(--primary);
+  color: var(--primary-light);
+  font-weight: 600;
+}
+
 .features-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 24px;
 }
 
@@ -831,10 +878,10 @@
   -webkit-backdrop-filter: var(--glass-blur-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  padding: 28px;
+  padding: 24px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
   transition: all var(--transition-normal);
   text-align: left;
 }
@@ -844,6 +891,26 @@
   transform: translateY(-3px);
   box-shadow: var(--shadow-md);
   background: var(--surface-hover);
+}
+
+.feature-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.feature-tag-chip {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
 }
 
 .feature-icon-box {
@@ -880,6 +947,23 @@
   margin: 0;
 }
 
+.feature-metric-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  margin-top: auto;
+}
+
+.feature-metric-badge svg {
+  color: var(--success);
+}
+
+
 /* --------------------------------------------------------------------------
    How It Works Process Timeline (Section 16)
    -------------------------------------------------------------------------- */
@@ -908,6 +992,12 @@
   border-color: var(--border-hover);
   background: var(--surface-hover);
   transform: translateY(-2px);
+}
+
+.process-step-card.is-active-step {
+  border-color: var(--primary);
+  background: rgba(99, 102, 241, 0.08);
+  box-shadow: 0 0 16px rgba(99, 102, 241, 0.2);
 }
 
 .process-step-header {

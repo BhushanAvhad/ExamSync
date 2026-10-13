@@ -55,7 +55,7 @@ export function AdminTopbar({
 
   const { profile, signOut } = useAuth();
   const adminName = profile?.full_name || 'Dr. Eleanor Vance';
-  const adminEmail = profile?.email || 'eleanor.vance@university.edu';
+  const adminEmail = profile?.email || 'admin@vit.edu.in';
   const adminInitials = adminName
     .split(' ')
     .filter(Boolean)
@@ -170,7 +170,7 @@ export function AdminTopbar({
             </div>
             <div className="topbar-profile-info">
               <span className="topbar-admin-name">{adminName}</span>
-              <span className="topbar-admin-role">Institutional Admin</span>
+              <span className="topbar-admin-role">VIT Admin</span>
             </div>
             <ChevronDownIcon size={14} className={`topbar-chevron ${profileOpen ? 'is-rotated' : ''}`} />
           </button>

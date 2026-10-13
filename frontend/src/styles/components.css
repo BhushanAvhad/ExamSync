@@ -165,6 +165,11 @@
   box-shadow: 0 0 0 3px var(--primary-glow);
 }
 
+select.input-field option {
+  background: var(--surface);
+  color: var(--text-primary);
+}
+
 .input-wrapper.has-prefix .input-field {
   padding-left: 38px;
 }
@@ -283,6 +288,13 @@
   border-color: var(--success-border);
 }
 .badge-completed .badge-dot { background: var(--success); }
+
+.badge-published {
+  background: var(--success-bg);
+  color: var(--success);
+  border-color: var(--success-border);
+}
+.badge-published .badge-dot { background: var(--success); }
 
 /* --------------------------------------------------------------------------
    Cards (Section 7)

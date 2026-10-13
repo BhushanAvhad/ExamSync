@@ -85,7 +85,7 @@ export function StudentSidebar({
                 <span className="brand-name">
                   Exam<span className="brand-accent">Sync</span>
                 </span>
-                <span className="brand-role-tag student-tag">Student Portal</span>
+                <span className="brand-role-tag student-tag">VIT Student Portal</span>
               </div>
             )}
           </button>

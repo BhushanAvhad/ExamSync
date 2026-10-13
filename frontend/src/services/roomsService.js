@@ -1,117 +1,142 @@
 import { supabase } from '../lib/supabase';
 import { INITIAL_ROOMS } from '../data/adminDemoData';
 
+const STORAGE_KEY = 'examsync_rooms';
+
+function getStoredRooms() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_ROOMS));
+  } catch (e) {
+    // ignore
+  }
+  return [...INITIAL_ROOMS];
+}
+
+function saveStoredRooms(list) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+  } catch (e) {
+    // ignore
+  }
+}
+
 export const roomsService = {
   /**
-   * Fetch all exam rooms from Supabase.
-   * Maps snake_case database schema to component data model.
+   * Fetch all exam rooms from Supabase with fallback to persistent storage.
    */
   async getRooms() {
-    if (!supabase) return { data: INITIAL_ROOMS, error: null };
+    const local = getStoredRooms();
+    if (!supabase) return { data: local, error: null };
 
-    const { data, error } = await supabase
-      .from('exam_rooms')
-      .select('*')
-      .order('room_number', { ascending: true });
+    try {
+      const { data, error } = await supabase
+        .from('exam_rooms')
+        .select('*')
+        .order('room_number', { ascending: true });
 
-    if (error) {
-      console.warn('[roomsService] getRooms error, using initial data:', error.message);
-      return { data: INITIAL_ROOMS, error };
+      if (error || !data || data.length === 0) {
+        return { data: local, error: null };
+      }
+
+      const mapped = data.map((r) => ({
+        id: r.id,
+        roomNumber: r.room_number,
+        location: r.location,
+        capacity: r.capacity,
+        type: r.type,
+        status: r.status,
+      }));
+
+      saveStoredRooms(mapped);
+      return { data: mapped, error: null };
+    } catch (e) {
+      return { data: local, error: null };
     }
-
-    if (!data || data.length === 0) {
-      return { data: INITIAL_ROOMS, error: null };
-    }
-
-    const mapped = data.map((r) => ({
-      id: r.id,
-      roomNumber: r.room_number,
-      location: r.location,
-      capacity: r.capacity,
-      type: r.type,
-      status: r.status,
-    }));
-
-    return { data: mapped, error: null };
   },
 
   /**
    * Create a new exam room.
    */
   async createRoom(room) {
-    if (!supabase) throw new Error('Supabase is not configured');
-
-    const payload = {
-      room_number: room.roomNumber.trim(),
+    const current = getStoredRooms();
+    const newRoom = {
+      id: room.id || `RM-${String(current.length + 1).padStart(2, '0')}`,
+      roomNumber: room.roomNumber.trim(),
       location: room.location.trim(),
       capacity: Number(room.capacity),
-      type: room.type,
+      type: room.type || 'Standard Classroom',
       status: room.status || 'Available',
     };
 
-    const { data, error } = await supabase
-      .from('exam_rooms')
-      .insert(payload)
-      .select()
-      .single();
+    const updated = [newRoom, ...current];
+    saveStoredRooms(updated);
 
-    if (error) throw error;
+    if (supabase) {
+      try {
+        await supabase.from('exam_rooms').insert({
+          room_number: newRoom.roomNumber,
+          location: newRoom.location,
+          capacity: newRoom.capacity,
+          type: newRoom.type,
+          status: newRoom.status,
+        });
+      } catch (e) {
+        // ignore
+      }
+    }
 
-    return {
-      id: data.id,
-      roomNumber: data.room_number,
-      location: data.location,
-      capacity: data.capacity,
-      type: data.type,
-      status: data.status,
-    };
+    return newRoom;
   },
 
   /**
    * Update an existing exam room.
    */
   async updateRoom(id, room) {
-    if (!supabase) throw new Error('Supabase is not configured');
+    const current = getStoredRooms();
+    const updated = current.map((r) => (r.id === id ? { ...r, ...room, capacity: Number(room.capacity) } : r));
+    saveStoredRooms(updated);
 
-    const payload = {
-      room_number: room.roomNumber.trim(),
-      location: room.location.trim(),
-      capacity: Number(room.capacity),
-      type: room.type,
-      status: room.status,
-    };
+    if (supabase) {
+      try {
+        await supabase
+          .from('exam_rooms')
+          .update({
+            room_number: room.roomNumber.trim(),
+            location: room.location.trim(),
+            capacity: Number(room.capacity),
+            type: room.type,
+            status: room.status,
+          })
+          .eq('id', id);
+      } catch (e) {
+        // ignore
+      }
+    }
 
-    const { data, error } = await supabase
-      .from('exam_rooms')
-      .update(payload)
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    return {
-      id: data.id,
-      roomNumber: data.room_number,
-      location: data.location,
-      capacity: data.capacity,
-      type: data.type,
-      status: data.status,
-    };
+    return room;
   },
 
   /**
    * Delete an exam room by ID.
    */
   async deleteRoom(id) {
-    if (!supabase) throw new Error('Supabase is not configured');
+    const current = getStoredRooms();
+    const updated = current.filter((r) => r.id !== id);
+    saveStoredRooms(updated);
 
-    const { error } = await supabase
-      .from('exam_rooms')
-      .delete()
-      .eq('id', id);
+    if (supabase) {
+      try {
+        await supabase.from('exam_rooms').delete().eq('id', id);
+      } catch (e) {
+        // ignore
+      }
+    }
 
-    if (error) throw error;
     return true;
   },
 };

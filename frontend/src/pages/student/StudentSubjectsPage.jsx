@@ -18,6 +18,7 @@ import { studentPortalService } from '../../services/studentPortalService';
 
 export function StudentSubjectsPage() {
   const { user } = useAuth();
+  const [studentInfo, setStudentInfo] = useState(null);
   const [subjects, setSubjects] = useState(STUDENT_SUBJECTS);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -28,8 +29,12 @@ export function StudentSubjectsPage() {
     async function load() {
       try {
         setLoading(true);
-        const { data } = await studentPortalService.getRegisteredSubjects(user?.id);
-        if (data && data.length > 0) setSubjects(data);
+        const [subRes, profRes] = await Promise.all([
+          studentPortalService.getRegisteredSubjects(user?.id),
+          studentPortalService.getProfile(user?.id, user?.email, user?.user_metadata),
+        ]);
+        if (subRes.data && subRes.data.length > 0) setSubjects(subRes.data);
+        if (profRes.data) setStudentInfo(profRes.data);
       } catch (err) {
         console.error('Failed to load registered subjects:', err);
       } finally {
@@ -127,7 +132,7 @@ export function StudentSubjectsPage() {
     <div className="admin-page-content student-subjects-page">
       <PageHeader
         title="My Registered Subjects"
-        subtitle={`Academic curriculum modules enrolled for ${STUDENT_PROFILE.term} • ${STUDENT_PROFILE.className} (${STUDENT_PROFILE.division})`}
+        subtitle={`Academic curriculum modules enrolled for ${studentInfo?.term || STUDENT_PROFILE.term} • ${studentInfo?.className || STUDENT_PROFILE.className} (${studentInfo?.division || STUDENT_PROFILE.division})`}
         category="Curriculum"
         actions={
           <div className="view-toggle-group">
@@ -213,7 +218,7 @@ export function StudentSubjectsPage() {
               </div>
 
               <div className="subject-card-footer">
-                <span className="cohort-tag">{STUDENT_PROFILE.className} ({STUDENT_PROFILE.division})</span>
+                <span className="cohort-tag">{studentInfo?.className || STUDENT_PROFILE.className} ({studentInfo?.division || STUDENT_PROFILE.division})</span>
               </div>
             </div>
           ))}

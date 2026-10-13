@@ -104,7 +104,7 @@ export function AdminSidebar({
                 <span className="brand-name">
                   Exam<span className="brand-accent">Sync</span>
                 </span>
-                <span className="brand-role-tag">Admin Console</span>
+                <span className="brand-role-tag">VIT Admin Console</span>
               </div>
             )}
           </button>

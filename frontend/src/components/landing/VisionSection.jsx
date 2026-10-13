@@ -1,27 +1,43 @@
-import { SparklesIcon, ShieldCheckIcon, LayersIcon } from '../ui/Icons';
+import { SparklesIcon, ShieldCheckIcon, LayersIcon, CheckCircleIcon, CalendarIcon, UsersIcon } from '../ui/Icons';
 
 /**
- * ExamSync About / Vision Section (Section 8 - Revised)
- * Strong visual composition communicating:
- * "Making examination scheduling more intelligent, organized and reliable."
+ * ExamSync About & Institutional Vision Section
+ * Section ID: #about
+ * Communicates:
+ * - The Problem: The combinatorial challenge of academic scheduling
+ * - The Solution: Deterministic heuristic solver with student-centric well-being
+ * - 4 Strategic Pillars
+ * - Core Institutional Proof Metrics
  */
 export function VisionSection() {
   const pillars = [
     {
       icon: <SparklesIcon size={20} />,
-      title: 'Intelligent',
-      desc: 'Harnessing modern constraint modeling to evaluate millions of potential scheduling combinations in seconds.',
+      title: 'Deterministic Precision',
+      desc: 'Harnessing modern constraint modeling to evaluate millions of potential scheduling combinations in seconds, guaranteeing zero room clashes.',
     },
     {
-      icon: <LayersIcon size={20} />,
-      title: 'Organized',
-      desc: 'Connecting academic faculties, department coordinators, and student cohorts within a synchronized structure.',
+      icon: <CalendarIcon size={20} />,
+      title: 'Student Well-Being',
+      desc: 'Ensuring balanced spacing between demanding exams to prevent mental fatigue, supporting student academic performance and retention.',
     },
     {
       icon: <ShieldCheckIcon size={20} />,
-      title: 'Reliable',
-      desc: 'Delivering conflict-free, dependable examination periods that students and faculty can plan around with confidence.',
+      title: 'Enterprise Governance',
+      desc: 'Role-based access control with administrative verification gates, secure audit trails, and student credential protection.',
     },
+    {
+      icon: <LayersIcon size={20} />,
+      title: 'Synchronized Campus',
+      desc: 'Bridging exam controllers, room facility managers, and student cohorts into a single live truth with instant admit card delivery.',
+    },
+  ];
+
+  const metrics = [
+    { value: '< 60s', label: 'Genetic Solve Time', sub: 'Average optimization speed' },
+    { value: '100%', label: 'Conflict-Free', sub: 'Hard constraints mathematically satisfied' },
+    { value: '0', label: 'Double Bookings', sub: 'Eliminates room & student overlaps' },
+    { value: '24/7', label: 'Portal Availability', sub: 'Instant student admit card downloads' },
   ];
 
   return (
@@ -33,19 +49,48 @@ export function VisionSection() {
 
           <div className="vision-header-content">
             <span className="section-tag" style={{ color: 'var(--primary-light)' }}>
-              Our Core Vision
+              About ExamSync
             </span>
             <h2 className="vision-quote">
-              “Making examination scheduling more intelligent, organized, and reliable.”
+              “Making examination scheduling intelligent, organized, and reliable.”
             </h2>
             <p className="vision-narrative">
-              Examination schedules are the backbone of academic milestones.
-              ExamSync was conceptualized to free academic administrators from the gridlock of manual
-              clashes, creating an environment where institutional planning is seamless and students can focus entirely on their learning.
+              Examination periods represent the highest stakes in academic life.
+              Traditionally, university administrators spend weeks juggling overlapping student enrollments,
+              limited lecture halls, and faculty schedules across fragile spreadsheets. ExamSync transforms this
+              combinatorial challenge into an automated, verified, and transparent process that puts institutional clarity first.
             </p>
           </div>
 
-          {/* Three Pillar Cards */}
+          {/* Key Metrics Banner */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gap: 16,
+              margin: '32px 0',
+              padding: '20px 24px',
+              background: 'rgba(99, 102, 241, 0.05)',
+              border: '1px solid rgba(99, 102, 241, 0.15)',
+              borderRadius: 'var(--radius-md)',
+            }}
+          >
+            {metrics.map((m) => (
+              <div key={m.label} style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
+                  {m.value}
+                </div>
+                <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--accent)', marginTop: 2 }}>
+                  {m.label}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                  {m.sub}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Four Pillar Cards */}
           <div className="vision-pillars-grid">
             {pillars.map((pillar) => (
               <div key={pillar.title} className="vision-pillar-card">

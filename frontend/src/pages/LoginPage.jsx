@@ -114,7 +114,7 @@ export function LoginPage({ onNavigate }) {
             label="Email Address"
             id="login-email"
             type="email"
-            placeholder="you@university.edu"
+            placeholder="you@vit.edu.in"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             prefixIcon={<UserIcon size={16} />}

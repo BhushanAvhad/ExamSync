@@ -388,7 +388,7 @@ export function RoomsPage() {
           <Input
             label="Room / Hall Name"
             id="room-number"
-            placeholder="e.g. Hall 101, Lab 204, Turing Auditorium"
+            placeholder="e.g. A101, A201, B201, M101, L01"
             value={roomForm.roomNumber}
             onChange={(e) => setRoomForm({ ...roomForm, roomNumber: e.target.value })}
             error={formErrors.roomNumber}
@@ -398,7 +398,7 @@ export function RoomsPage() {
           <Input
             label="Campus Location / Building"
             id="room-location"
-            placeholder="e.g. Science Complex, Ground Floor"
+            placeholder="e.g. Block A, 2nd Floor or Block M, 1st Floor"
             value={roomForm.location}
             onChange={(e) => setRoomForm({ ...roomForm, location: e.target.value })}
             error={formErrors.location}

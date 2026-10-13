@@ -18,58 +18,72 @@ import {
   INITIAL_ROOMS,
   INITIAL_EXAM_SESSIONS,
 } from '../../data/adminDemoData';
+import { exportToCSV } from '../../utils/exportUtils';
+import { OfficialPrintHeader } from '../../components/common/OfficialPrintHeader';
+import { OfficialPrintFooter } from '../../components/common/OfficialPrintFooter';
 
 export function ReportsPage() {
   const [selectedReportType, setSelectedReportType] = useState('master'); // 'master' | 'class' | 'room' | 'summary'
   const [toastMessage, setToastMessage] = useState(null);
 
   const reportCategories = [
-    { id: 'master', title: 'Master Institutional Timetable', desc: 'Consolidated university-wide exam schedule across all departments', icon: <FileTextIcon size={18} /> },
+    { id: 'master', title: 'Master Institutional Timetable', desc: 'Consolidated VIT campus-wide exam schedule across all departments', icon: <FileTextIcon size={18} /> },
     { id: 'class', title: 'Class & Cohort Timetable', desc: 'Individualized exam schedules grouped by academic year and division', icon: <UsersIcon size={18} /> },
     { id: 'room', title: 'Venue & Room Occupancy', desc: 'Hourly hall utilization, seating loads, and venue allocation breakdown', icon: <DoorIcon size={18} /> },
     { id: 'summary', title: 'Exam Session Executive Summary', desc: 'Statistical summary of total papers, examinee headcounts, and session metrics', icon: <CalendarDaysIcon size={18} /> },
   ];
 
-  // Export to CSV function
+  // Export to Excel / CSV function with UTF-8 BOM
   const handleExportCSV = () => {
-    let csvContent = '';
-    let fileName = `examsync-${selectedReportType}-report.csv`;
-
-    if (selectedReportType === 'master') {
-      csvContent = 'Date,Time Slot,Subject Code,Subject Name,Cohort,Division,Room,Duration,Status\n';
-      INITIAL_TIMETABLE.forEach((row) => {
-        csvContent += `"${row.date}","${row.timeSlot}","${row.subjectCode}","${row.subjectName}","${row.className}","${row.division}","${row.room}","${row.duration}","${row.status}"\n`;
-      });
-    } else if (selectedReportType === 'class') {
-      csvContent = 'Cohort,Division,Academic Year,Enrolled Students,Assigned Papers\n';
-      INITIAL_CLASSES.forEach((cls) => {
-        const count = INITIAL_TIMETABLE.filter((t) => t.className === cls.name).length;
-        csvContent += `"${cls.name}","${cls.division}","${cls.academicYear}","${cls.studentCount}","${count}"\n`;
-      });
-    } else if (selectedReportType === 'room') {
-      csvContent = 'Room,Location,Seating Capacity,Type,Status,Scheduled Sessions\n';
-      INITIAL_ROOMS.forEach((rm) => {
-        const count = INITIAL_TIMETABLE.filter((t) => t.room.includes(rm.roomNumber)).length;
-        csvContent += `"${rm.roomNumber}","${rm.location}","${rm.capacity}","${rm.type}","${rm.status}","${count}"\n`;
-      });
-    } else {
-      csvContent = 'Session Name,Academic Term,Start Date,End Date,Status,Description\n';
-      INITIAL_EXAM_SESSIONS.forEach((s) => {
-        csvContent += `"${s.name}","${s.term}","${s.startDate}","${s.endDate}","${s.status}","${s.description}"\n`;
-      });
+    try {
+      if (selectedReportType === 'master') {
+        const cols = [
+          { label: 'Date', key: 'date' },
+          { label: 'Time Slot', key: 'timeSlot' },
+          { label: 'Subject Code', key: 'subjectCode' },
+          { label: 'Subject Name', key: 'subjectName' },
+          { label: 'Cohort', key: 'className' },
+          { label: 'Division', key: 'division' },
+          { label: 'Room', key: 'room' },
+          { label: 'Duration', key: 'duration' },
+          { label: 'Status', key: 'status' },
+        ];
+        exportToCSV('ExamSync_Master_Timetable_Report', cols, INITIAL_TIMETABLE);
+      } else if (selectedReportType === 'class') {
+        const cols = [
+          { label: 'Academic Cohort', key: 'name' },
+          { label: 'Division', key: 'division' },
+          { label: 'Academic Year', key: 'academicYear' },
+          { label: 'Enrolled Examinees', key: 'studentCount' },
+          { label: 'Papers Scheduled', accessor: (row) => INITIAL_TIMETABLE.filter((t) => t.className.includes(row.name)).length },
+        ];
+        exportToCSV('ExamSync_Cohort_Schedule_Report', cols, INITIAL_CLASSES);
+      } else if (selectedReportType === 'room') {
+        const cols = [
+          { label: 'Room Number', key: 'roomNumber' },
+          { label: 'Building Location', key: 'location' },
+          { label: 'Seating Capacity', key: 'capacity' },
+          { label: 'Room Type', key: 'type' },
+          { label: 'Availability', key: 'status' },
+          { label: 'Scheduled Papers', accessor: (row) => INITIAL_TIMETABLE.filter((t) => t.room.includes(row.roomNumber)).length },
+        ];
+        exportToCSV('ExamSync_Venue_Utilization_Report', cols, INITIAL_ROOMS);
+      } else {
+        const cols = [
+          { label: 'Session Name', key: 'name' },
+          { label: 'Academic Term', key: 'term' },
+          { label: 'Start Date', key: 'startDate' },
+          { label: 'End Date', key: 'endDate' },
+          { label: 'Status', key: 'status' },
+          { label: 'Description', key: 'description' },
+        ];
+        exportToCSV('ExamSync_Session_Executive_Summary', cols, INITIAL_EXAM_SESSIONS);
+      }
+      setToastMessage(`Exported ${selectedReportType.toUpperCase()} report to Excel/CSV`);
+    } catch (err) {
+      console.error('Report export error:', err);
+      setToastMessage(`Export failed: ${err.message}`);
     }
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', fileName);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-
-    setToastMessage(`Downloaded ${fileName} (Demonstration CSV data)`);
   };
 
   const handlePrint = () => {
@@ -161,6 +175,12 @@ export function ReportsPage() {
             </Button>
           </div>
         </div>
+
+        {/* Official Letterhead Header for Print Mode */}
+        <OfficialPrintHeader
+          documentTitle={`OFFICIAL REPORT: ${reportCategories.find((c) => c.id === selectedReportType)?.title.toUpperCase()}`}
+          sessionTitle="Spring 2026 Final Examinations"
+        />
 
         {/* Report 1: Master Timetable Preview */}
         {selectedReportType === 'master' && (
@@ -304,6 +324,8 @@ export function ReportsPage() {
           <span>Official audit document • ExamSync Academic Scheduling System</span>
           <span>Fictional Demonstration Dataset</span>
         </div>
+
+        <OfficialPrintFooter />
       </div>
     </div>
   );

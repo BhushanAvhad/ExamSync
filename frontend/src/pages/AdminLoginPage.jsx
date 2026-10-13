@@ -83,7 +83,7 @@ export function AdminLoginPage({ onNavigate }) {
           </div>
           <h1 className="login-title">Admin Sign In</h1>
           <p className="login-subtitle">
-            Institutional examination management portal
+            Vidyalankar Institute of Technology (VIT) — Examination Portal
           </p>
         </div>
 
@@ -116,7 +116,7 @@ export function AdminLoginPage({ onNavigate }) {
             label="Administrator Email"
             id="admin-email"
             type="email"
-            placeholder="admin@university.edu"
+            placeholder="admin@vit.edu.in"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             prefixIcon={<UserIcon size={16} />}
@@ -172,7 +172,7 @@ export function AdminLoginPage({ onNavigate }) {
 
         {/* Notice - strictly stating admin credentials are institutionally provisioned */}
         <div className="prototype-notice">
-          <strong>Institutional Governance</strong>
+          <strong>VIT Institutional Governance</strong>
           <br />
           Administrative accounts are provisioned via secure institutional protocols. Public self-registration is strictly disabled.
         </div>

@@ -16,75 +16,87 @@ export function TablePreview() {
   const examData = [
     {
       id: 'ex-101',
-      course: 'Advanced Algorithms & Complexity',
-      code: 'CS-401',
-      dept: 'CS',
-      date: '2026-10-18',
-      time: '09:00 — 12:00',
-      venue: 'Main Auditorium Hall A',
-      capacity: '120 / 120',
+      course: 'Theoretical Computer Science',
+      code: 'CSC501',
+      dept: 'CMPN',
+      date: '2026-05-18',
+      time: '13:30 — 16:30',
+      venue: 'Block A, Lecture Hall A204',
+      capacity: '76 / 90',
       status: 'optimized',
       statusText: 'Optimized',
     },
     {
       id: 'ex-102',
-      course: 'Digital Signal Processing',
-      code: 'EE-304',
-      dept: 'EE',
-      date: '2026-10-19',
-      time: '13:00 — 16:00',
-      venue: 'Engineering Block 3, R102',
-      capacity: '85 / 90',
+      course: 'Digital Communication',
+      code: 'ECC501',
+      dept: 'EXTC',
+      date: '2026-05-19',
+      time: '09:00 — 12:00',
+      venue: 'Block B, Classroom B201',
+      capacity: '58 / 65',
       status: 'scheduled',
       statusText: 'Scheduled',
     },
     {
       id: 'ex-103',
-      course: 'Multivariate Calculus & Linear Algebra',
-      code: 'MATH-201',
-      dept: 'MATH',
-      date: '2026-10-20',
+      course: 'Applied Mathematics - I',
+      code: 'FEC101',
+      dept: 'FE',
+      date: '2026-05-20',
       time: '09:00 — 12:00',
-      venue: 'Science Lecture Hall C',
-      capacity: '110 / 115',
+      venue: 'Block F, Auditorium F101',
+      capacity: '133 / 220',
       status: 'optimized',
       statusText: 'Optimized',
     },
     {
       id: 'ex-104',
-      course: 'Distributed Database Systems',
-      code: 'CS-315',
-      dept: 'CS',
-      date: '2026-10-21',
-      time: '13:00 — 16:00',
-      venue: 'Advanced Computing Lab 2',
-      capacity: '60 / 60',
+      course: 'Internet Programming',
+      code: 'ITC501',
+      dept: 'INFT',
+      date: '2026-05-21',
+      time: '13:30 — 16:30',
+      venue: 'Block C, Lecture Hall C101',
+      capacity: '68 / 85',
       status: 'scheduled',
       statusText: 'Scheduled',
     },
     {
       id: 'ex-105',
-      course: 'Electromagnetic Field Theory',
-      code: 'EE-208',
-      dept: 'EE',
-      date: '2026-10-22',
+      course: 'Data Structures & Algorithms',
+      code: 'CSC303',
+      dept: 'CMPN',
+      date: '2026-05-22',
       time: '09:00 — 12:00',
-      venue: 'Main Auditorium Hall B',
-      capacity: '78 / 80',
+      venue: 'Block A, Lecture Hall A202',
+      capacity: '72 / 80',
       status: 'pending',
       statusText: 'Pending Approval',
     },
     {
       id: 'ex-106',
-      course: 'Probability & Stochastic Models',
-      code: 'MATH-305',
-      dept: 'MATH',
-      date: '2026-10-23',
-      time: '13:00 — 16:00',
-      venue: 'Lecture Theatre 4',
-      capacity: '92 / 100',
+      course: 'Machine Learning',
+      code: 'CSC701',
+      dept: 'CMPN',
+      date: '2026-05-23',
+      time: '13:30 — 16:30',
+      venue: 'Block A, Lecture Hall A301',
+      capacity: '74 / 100',
       status: 'completed',
       statusText: 'Verified',
+    },
+    {
+      id: 'ex-107',
+      course: 'Electronic Devices & Circuits',
+      code: 'ECC301',
+      dept: 'EXTC',
+      date: '2026-05-25',
+      time: '09:00 — 12:00',
+      venue: 'Block M, Lecture Hall M101',
+      capacity: '55 / 120',
+      status: 'scheduled',
+      statusText: 'Scheduled',
     },
   ];
 
@@ -107,7 +119,7 @@ export function TablePreview() {
             </span>
             <span style={{ color: 'var(--border-hover)', fontSize: '0.75rem' }}>•</span>
             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-              Dept of {row.dept}
+              {row.dept === 'FE' ? 'First Year (FE)' : `Dept of ${row.dept}`}
             </span>
           </div>
         </div>
@@ -188,7 +200,7 @@ export function TablePreview() {
             <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
               <FilterIcon size={14} /> Filter:
             </span>
-            {['ALL', 'CS', 'EE', 'MATH'].map((dept) => (
+            {['ALL', 'CMPN', 'INFT', 'EXTC', 'FE'].map((dept) => (
               <button
                 key={dept}
                 type="button"
@@ -196,7 +208,7 @@ export function TablePreview() {
                 className={`btn btn-sm ${filterDepartment === dept ? 'btn-primary' : 'btn-secondary'}`}
                 style={{ padding: '4px 12px' }}
               >
-                {dept === 'ALL' ? 'All Departments' : `Dept of ${dept}`}
+                {dept === 'ALL' ? 'All Departments' : dept === 'FE' ? 'First Year (FE)' : `Dept of ${dept}`}
               </button>
             ))}
           </div>

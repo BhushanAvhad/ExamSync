@@ -84,7 +84,7 @@ export function StudentHelpPage({ onNavigate }) {
         <div className="reporting-contact-strip">
           <div className="rep-item">
             <span className="rep-label">Examination Office:</span>
-            <span className="rep-val">academic.exams@university.edu</span>
+            <span className="rep-val">academic.exams@vit.edu.in</span>
           </div>
           <div className="rep-item">
             <span className="rep-label">Academic Advisor:</span>
@@ -92,7 +92,7 @@ export function StudentHelpPage({ onNavigate }) {
           </div>
           <div className="rep-item">
             <span className="rep-label">Location:</span>
-            <span className="rep-val">Central Administration Building, Room 204</span>
+            <span className="rep-val">VIT Examination Cell, Vidyalankar Campus, Wadala (East)</span>
           </div>
         </div>
       </div>

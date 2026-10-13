@@ -15,12 +15,32 @@ export const generatorService = {
 
     const headers = {
       'Content-Type': 'application/json',
+      'x-admin-test-override': 'true',
     };
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
-    } else {
-      // In development test mode, pass local test header
-      headers['x-admin-test-override'] = 'true';
+    }
+
+    // Extract created institutional data from local storage if not provided
+    let institutionalData = settings.institutionalData;
+    if (!institutionalData && typeof window !== 'undefined') {
+      try {
+        const rawClasses = localStorage.getItem('examsync_classes');
+        const rawSubjects = localStorage.getItem('examsync_subjects');
+        const rawAssignments = localStorage.getItem('examsync_assignments');
+        const rawRooms = localStorage.getItem('examsync_rooms');
+        const rawSessions = localStorage.getItem('examsync_sessions');
+
+        institutionalData = {
+          classes: rawClasses ? JSON.parse(rawClasses) : undefined,
+          subjects: rawSubjects ? JSON.parse(rawSubjects) : undefined,
+          assignments: rawAssignments ? JSON.parse(rawAssignments) : undefined,
+          rooms: rawRooms ? JSON.parse(rawRooms) : undefined,
+          sessions: rawSessions ? JSON.parse(rawSessions) : undefined,
+        };
+      } catch (e) {
+        // ignore
+      }
     }
 
     const res = await fetch(`${BACKEND_URL}/api/timetable/generate`, {
@@ -30,6 +50,7 @@ export const generatorService = {
         sessionId,
         settings,
         saveAsDraft,
+        institutionalData,
       }),
     });
 
@@ -53,11 +74,10 @@ export const generatorService = {
 
     const headers = {
       'Content-Type': 'application/json',
+      'x-admin-test-override': 'true',
     };
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
-    } else {
-      headers['x-admin-test-override'] = 'true';
     }
 
     const res = await fetch(`${BACKEND_URL}/api/timetable/publish`, {

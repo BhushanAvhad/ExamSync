@@ -2741,27 +2741,27 @@
 .theme-card-preview {
   height: 120px;
   border-radius: var(--radius-sm);
-  background: #080c18;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #0A1020;
+  border: 1px solid #293852;
   display: flex;
   overflow: hidden;
   margin-bottom: 14px;
 }
 
 .theme-card-preview.light-preview {
-  background: #f8fafc;
-  border-color: rgba(0, 0, 0, 0.1);
+  background: #F8FAFF;
+  border-color: #E1E8F2;
 }
 
 .mock-sidebar {
   width: 40px;
-  background: #12192f;
-  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  background: #111A2E;
+  border-right: 1px solid #293852;
 }
 
 .mock-sidebar.light {
-  background: #ffffff;
-  border-color: rgba(0, 0, 0, 0.08);
+  background: #FFFFFF;
+  border-color: #E1E8F2;
 }
 
 .mock-body {
@@ -2774,22 +2774,23 @@
 
 .mock-header {
   height: 14px;
-  background: #17203d;
+  background: #172238;
   border-radius: 3px;
 }
 
 .mock-header.light {
-  background: #e2e8f0;
+  background: #EAF1FF;
 }
 
 .mock-card {
   flex: 1;
-  background: #12192f;
+  background: #1B2942;
   border-radius: 4px;
 }
 
 .mock-card.light {
-  background: #ffffff;
+  background: #FFFFFF;
+  border: 1px solid #E1E8F2;
 }
 
 .theme-card-label {

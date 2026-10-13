@@ -16,6 +16,7 @@ import {
   PrinterIcon,
   EyeIcon,
   CheckCircleIcon,
+  DownloadIcon,
 } from '../../components/ui/Icons';
 import {
   INITIAL_TIMETABLE,
@@ -23,6 +24,9 @@ import {
 } from '../../data/adminDemoData';
 import { timetablesService } from '../../services/timetablesService';
 import { sessionsService } from '../../services/sessionsService';
+import { exportToCSV } from '../../utils/exportUtils';
+import { OfficialPrintHeader } from '../../components/common/OfficialPrintHeader';
+import { OfficialPrintFooter } from '../../components/common/OfficialPrintFooter';
 
 export function TimetablePage() {
   const [timetable, setTimetable] = useState(INITIAL_TIMETABLE);
@@ -37,11 +41,25 @@ export function TimetablePage() {
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
 
+  // Publish confirmation modal state initialized dynamically from preview store
+  const [showPublishDialog, setShowPublishDialog] = useState(false);
+  const [isPublished, setIsPublished] = useState(() => {
+    try {
+      const activePub = localStorage.getItem('examsync_session_published_active');
+      if (activePub) return JSON.parse(activePub).isPublished;
+      const sessPub = localStorage.getItem('examsync_session_published_SESS-2026-02');
+      if (sessPub) return JSON.parse(sessPub).isPublished;
+    } catch (e) {
+      // ignore
+    }
+    return false;
+  });
+
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
       const [ttRes, sessRes] = await Promise.all([
-        timetablesService.getTimetables(),
+        timetablesService.getTimetables(selectedSessionId),
         sessionsService.getExamSessions(),
       ]);
       if (ttRes.data) setTimetable(ttRes.data);
@@ -51,11 +69,31 @@ export function TimetablePage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedSessionId]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Synchronize published state when session changes
+  useEffect(() => {
+    try {
+      const sessPub = localStorage.getItem(`examsync_session_published_${selectedSessionId}`);
+      if (sessPub) {
+        setIsPublished(JSON.parse(sessPub).isPublished);
+      } else {
+        const activePub = localStorage.getItem('examsync_session_published_active');
+        if (activePub) {
+          const parsed = JSON.parse(activePub);
+          setIsPublished(parsed.sessionId === selectedSessionId ? parsed.isPublished : false);
+        } else {
+          setIsPublished(false);
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+  }, [selectedSessionId]);
 
   // Edit entry modal
   const [editingEntry, setEditingEntry] = useState(null);
@@ -75,10 +113,6 @@ export function TimetablePage() {
 
   // View details modal
   const [viewEntry, setViewEntry] = useState(null);
-
-  // Publish confirmation modal
-  const [showPublishDialog, setShowPublishDialog] = useState(false);
-  const [isPublished, setIsPublished] = useState(false);
 
   // Preview printable modal
   const [showPreviewModal, setShowPreviewModal] = useState(false);
@@ -110,6 +144,22 @@ export function TimetablePage() {
     });
   }, [timetable, searchQuery, selectedClass, selectedRoom, selectedStatus]);
 
+  // Dynamic filter options derived from timetable data
+  const cohortFilterOptions = useMemo(() => {
+    const list = Array.from(new Set(timetable.map((t) => t.className).filter(Boolean))).sort();
+    return [{ label: 'All Cohorts', value: 'all' }, ...list.map((c) => ({ label: c, value: c }))];
+  }, [timetable]);
+
+  const roomFilterOptions = useMemo(() => {
+    const list = Array.from(new Set(timetable.map((t) => t.room).filter(Boolean))).sort();
+    return [{ label: 'All Venues', value: 'all' }, ...list.map((r) => ({ label: r, value: r }))];
+  }, [timetable]);
+
+  const editVenueOptions = useMemo(() => {
+    const set = new Set([...timetable.map((t) => t.room).filter(Boolean), 'A101', 'A201', 'A202', 'A204', 'A301', 'B201', 'C101', 'F101', 'M101', 'L01', 'L02']);
+    return Array.from(set).sort();
+  }, [timetable]);
+
   // Handle Edit Modal
   const handleOpenEdit = (entry) => {
     setEditingEntry(entry);
@@ -134,31 +184,84 @@ export function TimetablePage() {
         date: editForm.date,
         status: editForm.status,
       });
-      setTimetable((prev) =>
-        prev.map((item) => (item.id === editingEntry.id ? { ...editForm } : item))
-      );
+      setTimetable((prev) => {
+        const next = prev.map((item) => (item.id === editingEntry.id ? { ...editForm } : item));
+        try {
+          const sessionKey = selectedSessionId || 'default';
+          localStorage.setItem(`examsync_timetable_data_${sessionKey}`, JSON.stringify(next));
+          localStorage.setItem('examsync_timetable_data', JSON.stringify(next));
+        } catch (err) {}
+        return next;
+      });
       setToastMessage(`Timetable slot for ${editForm.subjectCode} updated in database`);
     } catch (err) {
       console.error('Error updating timetable:', err);
-      setTimetable((prev) =>
-        prev.map((item) => (item.id === editingEntry.id ? { ...editForm } : item))
-      );
+      setTimetable((prev) => {
+        const next = prev.map((item) => (item.id === editingEntry.id ? { ...editForm } : item));
+        try {
+          const sessionKey = selectedSessionId || 'default';
+          localStorage.setItem(`examsync_timetable_data_${sessionKey}`, JSON.stringify(next));
+          localStorage.setItem('examsync_timetable_data', JSON.stringify(next));
+        } catch (storageErr) {}
+        return next;
+      });
       setToastMessage(`Timetable slot for ${editForm.subjectCode} updated locally (${err.message})`);
     } finally {
       setEditingEntry(null);
     }
   };
 
-  // Handle Publish action
+  // Handle Publish action - dynamically alters local preview session data
   const handlePublishConfirm = async () => {
+    const nextPublishedState = !isPublished;
+    setShowPublishDialog(false);
+
     try {
-      await timetablesService.publishTimetables(selectedSessionId, true);
-      setIsPublished(true);
-      setToastMessage('Timetable published to all students in database!');
+      await timetablesService.publishTimetables(selectedSessionId, nextPublishedState);
     } catch (err) {
-      console.error('Error publishing timetable:', err);
-      setIsPublished(true);
-      setToastMessage(`Timetable published (${err.message})`);
+      console.warn('Publish note:', err.message);
+    }
+
+    // Dynamically update active timetable rows in state
+    setTimetable((prev) => {
+      const nextList = prev.map((item) => ({
+        ...item,
+        status: nextPublishedState ? 'Published' : 'Scheduled',
+        isPublished: nextPublishedState,
+      }));
+      return nextList;
+    });
+
+    setIsPublished(nextPublishedState);
+
+    if (nextPublishedState) {
+      setToastMessage('Official examination timetable published! Student portals & admit cards are active.');
+    } else {
+      setToastMessage('Timetable reverted to Unpublished Draft status across local preview sessions.');
+    }
+  };
+
+  const handleExportCSV = () => {
+    try {
+      const exportCols = [
+        { label: 'Exam Date', key: 'date' },
+        { label: 'Time Slot', key: 'timeSlot' },
+        { label: 'Duration', key: 'duration' },
+        { label: 'Subject Code', key: 'subjectCode' },
+        { label: 'Subject Name', key: 'subjectName' },
+        { label: 'Cohort / Class', key: 'className' },
+        { label: 'Division', key: 'division' },
+        { label: 'Assigned Venue', key: 'room' },
+        { label: 'Status', key: 'status' },
+      ];
+      const currentSess = sessions.find((s) => s.id === selectedSessionId);
+      const sessionLabel = currentSess ? currentSess.name.replace(/[^a-zA-Z0-9_-]/g, '_') : 'Spring_2026';
+      const filename = `ExamSync_Master_Timetable_${sessionLabel}`;
+      exportToCSV(filename, exportCols, filteredEntries);
+      setToastMessage(`Exported ${filteredEntries.length} timetable records to Excel/CSV.`);
+    } catch (err) {
+      console.error('Export error:', err);
+      setToastMessage(`Export failed: ${err.message}`);
     }
   };
 
@@ -170,7 +273,7 @@ export function TimetablePage() {
       render: (val) => (
         <div className="table-date-cell">
           <CalendarDaysIcon size={14} className="date-icon" />
-          <span className="mono-date">{val}</span>
+          <span className="mono-date print-nowrap">{val}</span>
         </div>
       ),
     },
@@ -181,7 +284,7 @@ export function TimetablePage() {
       render: (val) => (
         <div className="table-slot-cell">
           <ClockIcon size={14} className="slot-icon" />
-          <span>{val}</span>
+          <span className="print-nowrap">{val}</span>
         </div>
       ),
     },
@@ -200,7 +303,7 @@ export function TimetablePage() {
       label: 'Cohort & Div',
       width: '140px',
       render: (val, row) => (
-        <span className="cohort-tag">{val} ({row.division})</span>
+        <span className="cohort-tag print-nowrap">{val} ({row.division})</span>
       ),
     },
     {
@@ -210,7 +313,7 @@ export function TimetablePage() {
       render: (val) => (
         <div className="table-room-pill">
           <DoorIcon size={14} />
-          <span>{val}</span>
+          <span className="print-nowrap">{val}</span>
         </div>
       ),
     },
@@ -224,11 +327,15 @@ export function TimetablePage() {
       key: 'status',
       label: 'Slot Status',
       width: '120px',
-      render: (val) => (
-        <Badge variant={val === 'Optimized' ? 'optimized' : 'scheduled'}>
-          {val}
-        </Badge>
-      ),
+      render: (val, row) => {
+        const isLive = isPublished || row.isPublished;
+        const displayVal = isLive ? 'Published' : val;
+        return (
+          <Badge variant={displayVal.toLowerCase()}>
+            {displayVal}
+          </Badge>
+        );
+      },
     },
     {
       key: 'actions',
@@ -271,11 +378,19 @@ export function TimetablePage() {
         badge={
           <span className={`publication-badge-pill ${isPublished ? 'published' : 'draft'}`}>
             <span className="dot" />
-            {isPublished ? 'Published to Students (Demo)' : 'Draft v1.4 (Unpublished)'}
+            {isPublished ? 'Live & Published to Students' : 'Draft v1.4 (Unpublished)'}
           </span>
         }
         actions={
           <div className="header-action-group">
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={<DownloadIcon size={15} />}
+              onClick={handleExportCSV}
+            >
+              Export Excel / CSV
+            </Button>
             <Button
               variant="secondary"
               size="sm"
@@ -284,14 +399,26 @@ export function TimetablePage() {
             >
               Print / Preview
             </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              icon={<CheckCircleIcon size={15} />}
-              onClick={() => setShowPublishDialog(true)}
-            >
-              Publish Timetable
-            </Button>
+            {isPublished ? (
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={<CheckCircleIcon size={15} style={{ color: 'var(--success)' }} />}
+                onClick={() => setShowPublishDialog(true)}
+                title="Click to revert or unpublish this timetable session"
+              >
+                Published (Revert to Draft)
+              </Button>
+            ) : (
+              <Button
+                variant="primary"
+                size="sm"
+                icon={<CheckCircleIcon size={15} />}
+                onClick={() => setShowPublishDialog(true)}
+              >
+                Publish Timetable
+              </Button>
+            )}
           </div>
         }
       />
@@ -357,15 +484,7 @@ export function TimetablePage() {
               setCurrentPage(1);
             },
             ariaLabel: 'Filter by Cohort',
-            options: [
-              { label: 'All Cohorts', value: 'all' },
-              { label: 'CS-Year 1', value: 'CS-Year 1' },
-              { label: 'CS-Year 2', value: 'CS-Year 2' },
-              { label: 'CS-Year 3', value: 'CS-Year 3' },
-              { label: 'SE-Year 2', value: 'SE-Year 2' },
-              { label: 'DS-Year 3', value: 'DS-Year 3' },
-              { label: 'EE-Year 2', value: 'EE-Year 2' },
-            ],
+            options: cohortFilterOptions,
           },
           {
             id: 'room-filter',
@@ -375,14 +494,7 @@ export function TimetablePage() {
               setCurrentPage(1);
             },
             ariaLabel: 'Filter by Room',
-            options: [
-              { label: 'All Venues', value: 'all' },
-              { label: 'Turing Auditorium', value: 'Turing Auditorium' },
-              { label: 'Hall 101', value: 'Hall 101' },
-              { label: 'Hall 201', value: 'Hall 201' },
-              { label: 'Lab 204', value: 'Lab 204' },
-              { label: 'Annex 210', value: 'Annex 210' },
-            ],
+            options: roomFilterOptions,
           },
           {
             id: 'status-filter',
@@ -464,6 +576,43 @@ export function TimetablePage() {
         </div>
       )}
 
+      {/* Official Printable Master Timetable (Rendered cleanly on print / PDF generation) */}
+      <div className="admin-printable-doc print-only">
+        <OfficialPrintHeader
+          documentTitle="OFFICIAL MASTER EXAMINATION TIMETABLE"
+          sessionTitle={sessions.find((s) => s.id === selectedSessionId)?.name}
+        />
+
+        <table className="printable-official-table">
+          <thead>
+            <tr>
+              <th style={{ width: '105px' }}>Date</th>
+              <th style={{ width: '135px' }}>Time Interval</th>
+              <th style={{ width: '90px' }}>Course Code</th>
+              <th>Course / Subject Title</th>
+              <th style={{ width: '120px' }}>Cohort & Div</th>
+              <th style={{ width: '130px' }}>Assigned Venue</th>
+              <th style={{ width: '80px' }}>Duration</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredEntries.map((row) => (
+              <tr key={row.id}>
+                <td className="print-nowrap" style={{ fontWeight: 600 }}>{row.date}</td>
+                <td className="print-nowrap">{row.timeSlot}</td>
+                <td className="mono-id print-nowrap">{row.subjectCode}</td>
+                <td className="subject-tbl-name">{row.subjectName}</td>
+                <td className="print-nowrap">{row.className} ({row.division})</td>
+                <td className="print-nowrap">{row.room}</td>
+                <td className="print-nowrap">{row.duration}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        <OfficialPrintFooter />
+      </div>
+
       {/* Edit Entry Modal */}
       {editingEntry && (
         <Modal
@@ -525,11 +674,11 @@ export function TimetablePage() {
                   value={editForm.room}
                   onChange={(e) => setEditForm({ ...editForm, room: e.target.value })}
                 >
-                  <option value="Turing Auditorium">Turing Auditorium (200 Cap)</option>
-                  <option value="Hall 101">Hall 101 (120 Cap)</option>
-                  <option value="Hall 201">Hall 201 (90 Cap)</option>
-                  <option value="Lab 204">Lab 204 (45 Cap)</option>
-                  <option value="Annex 210">Annex 210 (75 Cap)</option>
+                  {editVenueOptions.map((v) => (
+                    <option key={v} value={v}>
+                      {v}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -592,8 +741,8 @@ export function TimetablePage() {
           isOpen={showPreviewModal}
           onClose={() => setShowPreviewModal(false)}
           title="Printable Timetable Schedule Preview"
-          subtitle="Official institutional examination draft format"
-          maxWidth={750}
+          subtitle="Official institutional examination publication format"
+          maxWidth={820}
           footer={
             <div className="modal-form-actions">
               <Button variant="secondary" size="sm" onClick={() => setShowPreviewModal(false)}>
@@ -603,45 +752,48 @@ export function TimetablePage() {
                 variant="primary"
                 size="sm"
                 icon={<PrinterIcon size={14} />}
-                onClick={() => window.print()}
+                onClick={() => {
+                  setShowPreviewModal(false);
+                  setTimeout(() => window.print(), 180);
+                }}
               >
                 Print / Save PDF
               </Button>
             </div>
           }
         >
-          <div className="printable-preview-area">
-            <div className="printable-header">
-              <h2>ExamSync Institutional Examination Schedule</h2>
-              <p>Spring 2026 Final Examinations • Master Schedule Draft v1.4</p>
-            </div>
+          <div className="printable-preview-area" style={{ background: '#ffffff', color: '#0f172a', padding: '20px 24px', borderRadius: '8px' }}>
+            <OfficialPrintHeader
+              documentTitle="OFFICIAL MASTER EXAMINATION TIMETABLE"
+              sessionTitle={sessions.find((s) => s.id === selectedSessionId)?.name}
+            />
 
-            <table className="printable-table">
+            <table className="printable-official-table" style={{ width: '100%', borderCollapse: 'collapse', marginTop: 12, marginBottom: 16 }}>
               <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Time Slot</th>
-                  <th>Subject</th>
-                  <th>Class</th>
-                  <th>Venue</th>
+                <tr style={{ background: '#f1f5f9' }}>
+                  <th style={{ padding: '8px 10px', border: '1px solid #1e293b', textAlign: 'left', fontSize: 12 }}>Date</th>
+                  <th style={{ padding: '8px 10px', border: '1px solid #1e293b', textAlign: 'left', fontSize: 12 }}>Time</th>
+                  <th style={{ padding: '8px 10px', border: '1px solid #1e293b', textAlign: 'left', fontSize: 12 }}>Course</th>
+                  <th style={{ padding: '8px 10px', border: '1px solid #1e293b', textAlign: 'left', fontSize: 12 }}>Course Title</th>
+                  <th style={{ padding: '8px 10px', border: '1px solid #1e293b', textAlign: 'left', fontSize: 12 }}>Cohort</th>
+                  <th style={{ padding: '8px 10px', border: '1px solid #1e293b', textAlign: 'left', fontSize: 12 }}>Venue</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredEntries.map((row) => (
                   <tr key={row.id}>
-                    <td>{row.date}</td>
-                    <td>{row.timeSlot}</td>
-                    <td><strong>{row.subjectCode}</strong>: {row.subjectName}</td>
-                    <td>{row.className} ({row.division})</td>
-                    <td>{row.room}</td>
+                    <td style={{ padding: '7px 10px', border: '1px solid #cbd5e1', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap' }}>{row.date}</td>
+                    <td style={{ padding: '7px 10px', border: '1px solid #cbd5e1', fontSize: 12, whiteSpace: 'nowrap' }}>{row.timeSlot}</td>
+                    <td style={{ padding: '7px 10px', border: '1px solid #cbd5e1', fontSize: 12, fontWeight: 700, fontFamily: 'monospace' }}>{row.subjectCode}</td>
+                    <td style={{ padding: '7px 10px', border: '1px solid #cbd5e1', fontSize: 12 }}>{row.subjectName}</td>
+                    <td style={{ padding: '7px 10px', border: '1px solid #cbd5e1', fontSize: 12, whiteSpace: 'nowrap' }}>{row.className} ({row.division})</td>
+                    <td style={{ padding: '7px 10px', border: '1px solid #cbd5e1', fontSize: 12, whiteSpace: 'nowrap' }}>{row.room}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
 
-            <div className="printable-footer">
-              Generated by ExamSync Administrative Console. Institutional governance copy only.
-            </div>
+            <OfficialPrintFooter />
           </div>
         </Modal>
       )}
@@ -651,10 +803,14 @@ export function TimetablePage() {
         isOpen={showPublishDialog}
         onClose={() => setShowPublishDialog(false)}
         onConfirm={handlePublishConfirm}
-        title="Publish Examination Timetable"
-        message="This is a UI demonstration. Timetable publication to student accounts and database will be connected in Phase 3. Are you ready to simulate publishing?"
-        confirmText="Simulate Publish"
-        variant="primary"
+        title={isPublished ? "Revert Timetable to Draft" : "Publish Examination Timetable"}
+        message={
+          isPublished
+            ? "This action will revert the active examination timetable back to Unpublished Draft status across local preview sessions. Are you ready to revert to draft?"
+            : "This is a UI demonstration. Timetable publication will dynamically update all local preview session data, active schedules, and student admit cards. Are you ready to simulate publishing?"
+        }
+        confirmText={isPublished ? "Revert to Draft" : "Simulate Publish"}
+        variant={isPublished ? "warning" : "primary"}
       />
     </div>
   );

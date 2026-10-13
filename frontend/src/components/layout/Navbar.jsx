@@ -44,11 +44,69 @@ export function Navbar({
     };
   }, [dropdownOpen]);
 
+  const [activeSection, setActiveSection] = useState('home');
+
+  useEffect(() => {
+    if (currentPath !== '/') {
+      setActiveSection('');
+      return;
+    }
+
+    const handleScroll = () => {
+      const sections = ['about', 'how-it-works', 'features', 'home'];
+      const scrollPos = window.scrollY + 140;
+
+      for (const sectionId of sections) {
+        const el = document.getElementById(sectionId);
+        if (el) {
+          const top = el.offsetTop;
+          if (scrollPos >= top) {
+            setActiveSection(sectionId);
+            return;
+          }
+        }
+      }
+      setActiveSection('home');
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [currentPath]);
+
   const handleNavClick = (path) => {
     setDropdownOpen(false);
     setMobileMenuOpen(false);
     if (onNavigate) {
       onNavigate(path);
+    }
+  };
+
+  const scrollToSection = (sectionId) => {
+    setDropdownOpen(false);
+    setMobileMenuOpen(false);
+
+    if (currentPath !== '/') {
+      handleNavClick('/');
+      setTimeout(() => {
+        if (sectionId === 'home') {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        } else {
+          const el = document.getElementById(sectionId);
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth' });
+          }
+        }
+      }, 100);
+    } else {
+      if (sectionId === 'home') {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        const el = document.getElementById(sectionId);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth' });
+        }
+      }
     }
   };
 
@@ -59,7 +117,7 @@ export function Navbar({
         <button
           type="button"
           className="nav-brand"
-          onClick={() => handleNavClick('/')}
+          onClick={() => scrollToSection('home')}
           aria-label="ExamSync Home"
         >
           <div className="brand-icon-wrapper">
@@ -70,26 +128,44 @@ export function Navbar({
           </span>
         </button>
 
-        {/* Center: Navigation Links (Visual Placeholders) */}
+        {/* Center: Navigation Links */}
         <nav aria-label="Main Navigation">
           <ul className="nav-links">
             <li>
               <button
                 type="button"
-                className={`nav-link-btn ${currentPath === '/' ? 'active' : ''}`}
-                onClick={() => handleNavClick('/')}
+                className={`nav-link-btn ${currentPath === '/' && activeSection === 'home' ? 'active' : ''}`}
+                onClick={() => scrollToSection('home')}
               >
                 Home
               </button>
             </li>
             <li>
-              <span className="nav-link-btn placeholder">Features</span>
+              <button
+                type="button"
+                className={`nav-link-btn ${currentPath === '/' && activeSection === 'features' ? 'active' : ''}`}
+                onClick={() => scrollToSection('features')}
+              >
+                Features
+              </button>
             </li>
             <li>
-              <span className="nav-link-btn placeholder">How It Works</span>
+              <button
+                type="button"
+                className={`nav-link-btn ${currentPath === '/' && activeSection === 'how-it-works' ? 'active' : ''}`}
+                onClick={() => scrollToSection('how-it-works')}
+              >
+                How It Works
+              </button>
             </li>
             <li>
-              <span className="nav-link-btn placeholder">About</span>
+              <button
+                type="button"
+                className={`nav-link-btn ${currentPath === '/' && activeSection === 'about' ? 'active' : ''}`}
+                onClick={() => scrollToSection('about')}
+              >
+                About
+              </button>
             </li>
           </ul>
         </nav>
@@ -206,21 +282,36 @@ export function Navbar({
       <div className={`mobile-nav-drawer ${mobileMenuOpen ? 'open' : ''}`}>
         <button
           type="button"
-          className="nav-link-btn"
+          className={`nav-link-btn ${currentPath === '/' && activeSection === 'home' ? 'active' : ''}`}
           style={{ textAlign: 'left', padding: '8px 0' }}
-          onClick={() => handleNavClick('/')}
+          onClick={() => scrollToSection('home')}
         >
           Home
         </button>
-        <span className="nav-link-btn placeholder" style={{ textAlign: 'left', padding: '8px 0' }}>
+        <button
+          type="button"
+          className={`nav-link-btn ${currentPath === '/' && activeSection === 'features' ? 'active' : ''}`}
+          style={{ textAlign: 'left', padding: '8px 0' }}
+          onClick={() => scrollToSection('features')}
+        >
           Features
-        </span>
-        <span className="nav-link-btn placeholder" style={{ textAlign: 'left', padding: '8px 0' }}>
+        </button>
+        <button
+          type="button"
+          className={`nav-link-btn ${currentPath === '/' && activeSection === 'how-it-works' ? 'active' : ''}`}
+          style={{ textAlign: 'left', padding: '8px 0' }}
+          onClick={() => scrollToSection('how-it-works')}
+        >
           How It Works
-        </span>
-        <span className="nav-link-btn placeholder" style={{ textAlign: 'left', padding: '8px 0' }}>
+        </button>
+        <button
+          type="button"
+          className={`nav-link-btn ${currentPath === '/' && activeSection === 'about' ? 'active' : ''}`}
+          style={{ textAlign: 'left', padding: '8px 0' }}
+          onClick={() => scrollToSection('about')}
+        >
           About
-        </span>
+        </button>
 
         <div className="mobile-auth-section">
           <div className="mobile-section-label">SIGN IN AS</div>

@@ -3,6 +3,7 @@
 @import './styles/layout.css';
 @import './styles/admin.css';
 @import './styles/student.css';
+@import './styles/print.css';
 
 /* ==========================================================================
    ExamSync Global Base Styles
@@ -35,6 +36,8 @@ body {
   min-height: 100vh;
   margin: 0;
   background-color: var(--background);
+  background-image: var(--gradient-page-bg);
+  background-attachment: fixed;
   color: var(--text-primary);
   font-family: var(--font-sans);
   font-size: 16px;

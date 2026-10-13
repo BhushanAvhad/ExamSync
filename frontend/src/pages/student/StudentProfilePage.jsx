@@ -23,8 +23,8 @@ export function StudentProfilePage() {
 
   useEffect(() => {
     async function load() {
-      if (user?.id) {
-        const { data } = await studentPortalService.getProfile(user.id, user.email);
+      if (user?.id || user?.email) {
+        const { data } = await studentPortalService.getProfile(user?.id, user?.email, user?.user_metadata);
         if (data) {
           setProfile(data);
           setFormData({

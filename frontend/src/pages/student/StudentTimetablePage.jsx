@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { PageHeader } from '../../components/admin/PageHeader';
 import { FilterBar } from '../../components/admin/FilterBar';
 import { DataTable } from '../../components/admin/DataTable';
@@ -9,7 +9,8 @@ import {
   ClockIcon,
   DoorIcon,
   PrinterIcon,
-  InfoIcon,
+  DownloadIcon,
+  ShieldCheckIcon,
 } from '../../components/ui/Icons';
 import {
   STUDENT_PROFILE,
@@ -17,9 +18,13 @@ import {
 } from '../../data/studentDemoData';
 import { useAuth } from '../../context/useAuth';
 import { studentPortalService } from '../../services/studentPortalService';
+import { exportToCSV } from '../../utils/exportUtils';
+import { OfficialPrintHeader } from '../../components/common/OfficialPrintHeader';
+import { getInstitutionSettings } from '../../utils/institutionSettings';
 
 export function StudentTimetablePage() {
-  const { user } = useAuth();
+  const { user, profile: authProfile } = useAuth();
+  const [studentInfo, setStudentInfo] = useState(null);
   const [timetable, setTimetable] = useState(STUDENT_TIMETABLE_ENTRIES);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -27,32 +32,106 @@ export function StudentTimetablePage() {
   const [selectedSubject, setSelectedSubject] = useState('all');
   const [viewMode, setViewMode] = useState('table'); // 'table' | 'grid'
 
-  useEffect(() => {
-    async function load() {
-      try {
-        setLoading(true);
-        const { data } = await studentPortalService.getStudentTimetable(user?.id);
-        if (data && data.length > 0) setTimetable(data);
-      } catch (err) {
-        console.error('Failed to load student timetable:', err);
-      } finally {
-        setLoading(false);
+  const [isPublished, setIsPublished] = useState(() => {
+    try {
+      const activePub = localStorage.getItem('examsync_active_timetable_published');
+      if (activePub) return JSON.parse(activePub).isPublished;
+    } catch (e) {}
+    return true;
+  });
+
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const [profRes, ttRes] = await Promise.all([
+        studentPortalService.getProfile(user?.id, user?.email, user?.user_metadata),
+        studentPortalService.getStudentTimetable(user?.id, user?.email),
+      ]);
+      if (profRes.data) setStudentInfo(profRes.data);
+      if (ttRes.data && ttRes.data.length > 0) {
+        setTimetable(ttRes.data);
+      } else {
+        setTimetable(STUDENT_TIMETABLE_ENTRIES);
       }
+      try {
+        const activePub = localStorage.getItem('examsync_active_timetable_published');
+        if (activePub) setIsPublished(JSON.parse(activePub).isPublished);
+      } catch (e) {}
+    } catch (err) {
+      console.error('Failed to load student timetable or profile:', err);
+      setTimetable(STUDENT_TIMETABLE_ENTRIES);
+    } finally {
+      setLoading(false);
     }
-    load();
   }, [user]);
 
-  const filteredEntries = useMemo(() => {
-    return timetable.filter((item) => {
-      const q = searchQuery.toLowerCase();
-      const matchesSearch =
-        !q ||
-        item.subjectCode.toLowerCase().includes(q) ||
-        item.subjectName.toLowerCase().includes(q) ||
-        item.room.toLowerCase().includes(q) ||
-        item.location.toLowerCase().includes(q);
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
-      const matchesDay = selectedDay === 'all' || item.day.toLowerCase() === selectedDay.toLowerCase();
+  // Reactive listener for real-time timetable generation & publication updates
+  useEffect(() => {
+    const handleTimetableChange = (e) => {
+      if (e?.detail?.isPublished !== undefined) {
+        setIsPublished(e.detail.isPublished);
+      }
+      loadData();
+    };
+    window.addEventListener('examsync_timetable_published', handleTimetableChange);
+    window.addEventListener('examsync_timetable_updated', handleTimetableChange);
+    window.addEventListener('storage', handleTimetableChange);
+    return () => {
+      window.removeEventListener('examsync_timetable_published', handleTimetableChange);
+      window.removeEventListener('examsync_timetable_updated', handleTimetableChange);
+      window.removeEventListener('storage', handleTimetableChange);
+    };
+  }, [loadData]);
+
+  // Derive dynamic student candidate credentials from session & matched records
+  const candidateName =
+    studentInfo?.name ||
+    authProfile?.full_name ||
+    user?.user_metadata?.full_name ||
+    (user?.email ? user.email.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) : 'Enrolled Candidate');
+
+  const candidateId =
+    studentInfo?.id ||
+    authProfile?.id ||
+    (user?.id ? `VIT-${user.id.slice(0, 8).toUpperCase()}` : 'VIT-2026-001');
+
+  const candidateClass =
+    studentInfo?.className ||
+    authProfile?.department ||
+    'TE CMPN';
+
+  const candidateDivision =
+    studentInfo?.division ||
+    'Division A';
+
+  const candidateProgram = candidateClass.includes('CMPN')
+    ? 'B.E. Computer Engineering (VIT Mumbai)'
+    : candidateClass.includes('INFT')
+    ? 'B.E. Information Technology (VIT Mumbai)'
+    : candidateClass.includes('EXTC')
+    ? 'B.E. Electronics & Telecommunication (VIT Mumbai)'
+    : candidateClass.includes('ECS')
+    ? 'B.E. Electronics & Computer Science (VIT Mumbai)'
+    : candidateClass.includes('BIOM')
+    ? 'B.E. Biomedical Engineering (VIT Mumbai)'
+    : 'B.E. Engineering Programme (VIT Mumbai)';
+
+  const filteredEntries = useMemo(() => {
+    return (timetable || []).filter((item) => {
+      if (!item) return false;
+      const q = (searchQuery || '').toLowerCase();
+      const code = (item.subjectCode || '').toLowerCase();
+      const name = (item.subjectName || '').toLowerCase();
+      const room = (item.room || '').toLowerCase();
+      const loc = (item.location || '').toLowerCase();
+      const day = (item.day || '').toLowerCase();
+
+      const matchesSearch = !q || code.includes(q) || name.includes(q) || room.includes(q) || loc.includes(q);
+      const matchesDay = selectedDay === 'all' || day === selectedDay.toLowerCase();
       const matchesSubject = selectedSubject === 'all' || item.subjectCode === selectedSubject;
 
       return matchesSearch && matchesDay && matchesSubject;
@@ -61,6 +140,27 @@ export function StudentTimetablePage() {
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleExportCSV = () => {
+    try {
+      const exportCols = [
+        { label: 'Date', key: 'date' },
+        { label: 'Day', key: 'day' },
+        { label: 'Time Slot', key: 'timeSlot' },
+        { label: 'Duration', key: 'duration' },
+        { label: 'Subject Code', key: 'subjectCode' },
+        { label: 'Subject Name', key: 'subjectName' },
+        { label: 'Room / Venue', key: 'room' },
+        { label: 'Building Location', key: 'location' },
+        { label: 'Assigned Desk', key: 'seatNumber' },
+        { label: 'Exam Type', key: 'type' },
+      ];
+      const filename = `ExamSync_Admit_Card_${candidateName.replace(/\s+/g, '_')}_${candidateId}`;
+      exportToCSV(filename, exportCols, filteredEntries);
+    } catch (err) {
+      console.error('Export error:', err);
+    }
   };
 
   const columns = [
@@ -72,7 +172,7 @@ export function StudentTimetablePage() {
         <div className="table-date-cell">
           <CalendarDaysIcon size={14} className="date-icon" />
           <div>
-            <span className="mono-date">{val}</span>
+            <span className="mono-date print-nowrap">{val}</span>
             <div className="date-sub-day">{row.day}</div>
           </div>
         </div>
@@ -86,7 +186,7 @@ export function StudentTimetablePage() {
         <div className="table-slot-cell">
           <ClockIcon size={14} className="slot-icon" />
           <div>
-            <span>{val}</span>
+            <span className="print-nowrap">{val}</span>
             <div className="slot-sub-dur">{row.duration}</div>
           </div>
         </div>
@@ -110,7 +210,7 @@ export function StudentTimetablePage() {
         <div className="table-room-pill">
           <DoorIcon size={14} />
           <div>
-            <strong>{val}</strong>
+            <strong className="print-nowrap">{val}</strong>
             <div className="room-sub-loc">{row.location}</div>
           </div>
         </div>
@@ -121,7 +221,7 @@ export function StudentTimetablePage() {
       label: 'Assigned Desk',
       width: '130px',
       render: (val) => (
-        <span className="student-desk-badge">
+        <span className="student-desk-badge print-nowrap">
           {val}
         </span>
       ),
@@ -136,76 +236,64 @@ export function StudentTimetablePage() {
       key: 'status',
       label: 'Status',
       width: '120px',
-      render: (val) => (
-        <Badge variant={val === 'Optimized' ? 'optimized' : 'scheduled'}>
-          {val}
-        </Badge>
-      ),
+      render: (val) => {
+        const displayVal = isPublished ? 'Published' : (val || 'Scheduled');
+        return (
+          <Badge variant={displayVal.toLowerCase()}>
+            {displayVal}
+          </Badge>
+        );
+      },
     },
   ];
 
   return (
     <div className="admin-page-content student-timetable-page">
       <PageHeader
-        title="My Examination Timetable"
-        subtitle={`Official examination schedule for ${STUDENT_PROFILE.name} (${STUDENT_PROFILE.id}) • ${STUDENT_PROFILE.className} (${STUDENT_PROFILE.division})`}
+        title="My Examination Timetable & Admit Card"
+        subtitle={`Official examination schedule for ${candidateName} (${candidateId}) • ${candidateClass} (${candidateDivision})`}
         category="Examinations"
         badge={
-          <span className="publication-badge-pill published">
+          <span className={`publication-badge-pill ${isPublished ? 'published' : 'draft'}`}>
             <span className="dot" />
-            Official Published Timetable
+            {isPublished ? 'Official Published Timetable' : 'Draft / Under Academic Review'}
           </span>
         }
         actions={
-          <Button
-            variant="primary"
-            size="sm"
-            icon={<PrinterIcon size={15} />}
-            onClick={handlePrint}
-          >
-            Print / Save PDF
-          </Button>
+          <div className="header-action-group">
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={<DownloadIcon size={15} />}
+              onClick={handleExportCSV}
+            >
+              Export CSV
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              icon={<PrinterIcon size={15} />}
+              onClick={handlePrint}
+            >
+              Print / Save Admit Card
+            </Button>
+          </div>
         }
       />
 
-      {/* Info notice */}
-      <div className="admin-banner info-banner">
-        <InfoIcon size={18} className="banner-icon" />
+      {/* Candidate Verification Strip */}
+      <div className="admin-banner info-banner" style={{ borderLeft: '4px solid #10b981', marginBottom: 20 }}>
+        <ShieldCheckIcon size={18} className="banner-icon" style={{ color: '#10b981' }} />
         <div className="banner-content">
-          <strong>Individual Student Examination Schedule</strong> — The schedule reflects your enrolled curriculum modules for <strong>{STUDENT_PROFILE.term}</strong>. Desk allocations are fixed by central invigilation rules.
+          <strong>Official Hall Ticket Record</strong> — Candidate: <strong>{candidateName}</strong> | Roll/ID: <strong>{candidateId}</strong> | Cohort: <strong>{candidateClass} ({candidateDivision})</strong>. Verify paper schedule and desk assignments below.
         </div>
       </div>
 
-      {/* Filter and View Bar */}
-      <div className="timetable-session-bar">
-        <div className="session-select-inline">
-          <span className="inline-label">Academic Session:</span>
-          <span className="student-session-tag">Spring 2026 Final Examinations</span>
-        </div>
-
-        <div className="view-toggle-group">
-          <button
-            type="button"
-            className={`view-toggle-btn ${viewMode === 'table' ? 'is-active' : ''}`}
-            onClick={() => setViewMode('table')}
-          >
-            List View
-          </button>
-          <button
-            type="button"
-            className={`view-toggle-btn ${viewMode === 'grid' ? 'is-active' : ''}`}
-            onClick={() => setViewMode('grid')}
-          >
-            Daily Slot Grid
-          </button>
-        </div>
-      </div>
-
-      {/* Filters and Search Bar */}
+      {/* Filter and Search Bar */}
       <FilterBar
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
-        searchPlaceholder="Filter your examinations by subject code, title, or room..."
+        searchPlaceholder="Filter by course code, name, or room..."
         totalResults={filteredEntries.length}
         onClearAll={() => {
           setSearchQuery('');
@@ -221,58 +309,48 @@ export function StudentTimetablePage() {
             options: [
               { label: 'All Days', value: 'all' },
               { label: 'Monday', value: 'monday' },
-              { label: 'Thursday', value: 'thursday' },
-            ],
-          },
-          {
-            id: 'subject-filter',
-            value: selectedSubject,
-            onChange: setSelectedSubject,
-            ariaLabel: 'Filter by Subject',
-            options: [
-              { label: 'All Subjects', value: 'all' },
-              { label: 'CS-301 Operating Systems', value: 'CS-301' },
-              { label: 'CS-401 Algorithmic Graph Theory', value: 'CS-401' },
-              { label: 'SE-205 Software Architecture', value: 'SE-205' },
-              { label: 'DS-310 Machine Learning', value: 'DS-310' },
+              { label: 'Wednesday', value: 'wednesday' },
+              { label: 'Friday', value: 'friday' },
             ],
           },
         ]}
       />
 
-      {/* View 1: List View (Table with Glass Headers) */}
-      {viewMode === 'table' && (
+      {/* Timetable Data Display */}
+      {viewMode === 'table' ? (
         <DataTable
           columns={columns}
           data={filteredEntries}
           idKey="id"
-          pageSize={10}
+          totalItems={filteredEntries.length}
           emptyTitle="No examinations match your filter"
-          emptySubtitle="Try resetting search keywords or day filters."
+          emptySubtitle="Try selecting All Days or clearing your search term."
         />
-      )}
-
-      {/* View 2: Daily Slot Grid */}
-      {viewMode === 'grid' && (
-        <div className="timetable-slot-grid student-slot-grid">
+      ) : (
+        <div className="student-grid-view">
           {filteredEntries.map((entry) => (
-            <div key={entry.id} className="slot-day-column student-slot-col">
-              <div className="slot-day-header">
-                <span className="slot-day-title">{entry.day}, {entry.date}</span>
+            <div key={entry.id} className="student-grid-card">
+              <div className="student-grid-header">
+                <span className="grid-course-code">{entry.subjectCode}</span>
                 <Badge variant={entry.status === 'Optimized' ? 'optimized' : 'scheduled'}>
                   {entry.status}
                 </Badge>
               </div>
 
-              <div className="slot-day-cards">
-                <div className="slot-exam-card student-grid-card">
-                  <div className="slot-exam-time">
-                    <ClockIcon size={14} />
-                    <span>{entry.timeSlot} ({entry.duration})</span>
-                  </div>
+              <h4 className="student-grid-title">{entry.subjectName}</h4>
 
-                  <div className="slot-exam-code">{entry.subjectCode}</div>
-                  <h4 className="student-grid-exam-name">{entry.subjectName}</h4>
+              <div className="student-grid-details">
+                <div className="student-grid-date-badge">
+                  <CalendarDaysIcon size={14} />
+                  <span>{entry.date} ({entry.day})</span>
+                </div>
+
+                <div className="student-grid-meta-box">
+                  <div className="student-grid-time-row">
+                    <ClockIcon size={14} />
+                    <span>{entry.timeSlot}</span>
+                    <span className="grid-dur-pill">{entry.duration}</span>
+                  </div>
 
                   <div className="student-grid-venue-box">
                     <div className="grid-venue-row">
@@ -293,43 +371,109 @@ export function StudentTimetablePage() {
         </div>
       )}
 
-      {/* Printable Area Format (used when window.print() is called) */}
-      <div className="student-printable-doc">
-        <div className="printable-header">
-          <h2>ExamSync — Personal Examination Timetable</h2>
-          <p>
-            Candidate: <strong>{STUDENT_PROFILE.name}</strong> ({STUDENT_PROFILE.id}) • {STUDENT_PROFILE.className} ({STUDENT_PROFILE.division})
-          </p>
-          <p>Session: Spring 2026 Final Examinations • Official Student Copy</p>
+      {/* Official Student Admit Card & Timetable Format (Active on window.print) */}
+      <div className="student-admit-card-print student-printable-doc print-only">
+        <OfficialPrintHeader
+          documentTitle="OFFICIAL STUDENT EXAMINATION ADMIT CARD & TIMETABLE"
+          sessionTitle="Spring 2026 Final Examinations"
+          academicYear="2025–2026"
+          referenceNo={`VIT-ADM-2026-${candidateId.replace(/[^A-Za-z0-9]/g, '').slice(-6).toUpperCase()}`}
+        />
+
+        {/* Candidate Identity Strip (DYNAMICALLY FETCHED FROM LOGIN SESSION) */}
+        <div className="student-candidate-card">
+          <div className="candidate-details-grid">
+            <div className="candidate-detail-item">
+              <span className="cd-label">Candidate Name:</span>
+              <strong className="cd-val" style={{ color: '#0f172a', fontSize: '15px' }}>{candidateName}</strong>
+            </div>
+            <div className="candidate-detail-item">
+              <span className="cd-label">Roll / Reg No:</span>
+              <strong className="cd-val" style={{ fontFamily: 'monospace', fontSize: '14px' }}>{candidateId}</strong>
+            </div>
+            <div className="candidate-detail-item">
+              <span className="cd-label">Academic Program:</span>
+              <span className="cd-val">{candidateProgram}</span>
+            </div>
+            <div className="candidate-detail-item">
+              <span className="cd-label">Cohort & Section:</span>
+              <span className="cd-val">{candidateClass} — {candidateDivision}</span>
+            </div>
+            <div className="candidate-detail-item">
+              <span className="cd-label">Exam Center:</span>
+              <span className="cd-val">{getInstitutionSettings()?.campus || 'Vidyalankar Educational Campus, Wadala (East), Mumbai 400037'}</span>
+            </div>
+            <div className="candidate-detail-item">
+              <span className="cd-label">Reporting Time:</span>
+              <span className="cd-val">30 mins prior to paper commencement</span>
+            </div>
+          </div>
+
+          <div className="candidate-photo-box">
+            AFFIX PASSPORT SIZE PHOTOGRAPH HERE
+          </div>
         </div>
 
-        <table className="printable-table">
+        {/* Examination Papers Table */}
+        <table className="printable-official-table">
           <thead>
             <tr>
-              <th>Date & Day</th>
-              <th>Time Slot</th>
-              <th>Subject</th>
-              <th>Venue</th>
-              <th>Desk</th>
-              <th>Duration</th>
+              <th style={{ width: '115px' }}>Date & Day</th>
+              <th style={{ width: '135px' }}>Time Slot</th>
+              <th style={{ width: '85px' }}>Course Code</th>
+              <th>Course / Subject Title</th>
+              <th style={{ width: '130px' }}>Assigned Venue</th>
+              <th style={{ width: '65px' }}>Desk</th>
+              <th style={{ width: '75px' }}>Duration</th>
+              <th style={{ width: '85px' }}>Invigilator</th>
             </tr>
           </thead>
           <tbody>
             {filteredEntries.map((row) => (
               <tr key={row.id}>
-                <td>{row.day}, {row.date}</td>
-                <td>{row.timeSlot}</td>
-                <td><strong>{row.subjectCode}</strong>: {row.subjectName}</td>
-                <td>{row.room}</td>
-                <td>{row.seatNumber}</td>
-                <td>{row.duration}</td>
+                <td className="print-nowrap" style={{ fontWeight: 600 }}>{row.date} ({row.day ? row.day.slice(0, 3) : ''})</td>
+                <td className="print-nowrap">{row.timeSlot}</td>
+                <td className="mono-id print-nowrap">{row.subjectCode}</td>
+                <td className="subject-tbl-name">{row.subjectName}</td>
+                <td className="print-nowrap">{row.room}</td>
+                <td className="print-nowrap" style={{ fontWeight: 700, textAlign: 'center' }}>{row.seatNumber}</td>
+                <td className="print-nowrap">{row.duration}</td>
+                <td style={{ textAlign: 'center', color: '#94a3b8' }}>________</td>
               </tr>
             ))}
           </tbody>
         </table>
 
-        <div className="printable-footer">
-          Candidate Instructions: Photo ID verification required at entrance. Doors close 10 minutes prior to exam commencement.
+        {/* Candidate Rules and Instructions */}
+        <div className="student-instructions-card">
+          <div className="student-instructions-title">IMPORTANT INSTRUCTIONS FOR EXAMINEES:</div>
+          <ol className="student-instructions-list">
+            <li>Candidates must present this authenticated Admit Card alongside valid Institutional Photo ID at the examination hall portal.</li>
+            <li>Possession of smartphones, wearable tech, unauthorized books, programmable calculators, or revision notes inside the hall is strictly prohibited.</li>
+            <li>Candidates must strictly occupy their assigned desk number only. Late admittance will not be permitted 15 minutes after session commencement.</li>
+            <li>Examinees are not permitted to exit the examination hall during the initial 60 minutes or final 15 minutes of the paper.</li>
+          </ol>
+        </div>
+
+        {/* Signatures and Verification */}
+        <div className="student-signature-row">
+          <div className="student-sig-block">
+            <div className="print-signature-line" />
+            <div className="print-signature-name">Candidate's Signature</div>
+            <div className="print-signature-title">({candidateName})</div>
+          </div>
+
+          <div className="student-sig-block">
+            <div className="print-seal-box">
+              OFFICIAL<br />EXAM CELL<br />SEAL
+            </div>
+          </div>
+
+          <div className="student-sig-block">
+            <div className="print-signature-line" />
+            <div className="print-signature-name">Controller of Examinations</div>
+            <div className="print-signature-title">VIT Examination Cell, Wadala</div>
+          </div>
         </div>
       </div>
     </div>

@@ -1,0 +1,472 @@
+/* ==========================================================================
+   ExamSync Professional Printing & PDF Document Stylesheet
+   Engineered for clean, publication-grade academic examination documents.
+   ========================================================================== */
+
+/* On Screen: Keep print-only documents and letterheads hidden */
+@media screen {
+  .official-print-header,
+  .official-print-footer,
+  .student-admit-card-print,
+  .student-printable-doc,
+  .admin-printable-doc,
+  .print-only {
+    display: none !important;
+  }
+}
+
+/* ==========================================================================
+   PRINT MEDIA RULES (@media print)
+   ========================================================================== */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm 10mm 12mm 10mm;
+  }
+
+  /* Universal reset for pure paper contrast */
+  html,
+  body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
+    font-size: 9.5pt !important;
+    line-height: 1.35 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body::before,
+  body::after {
+    display: none !important;
+  }
+
+  /* ------------------------------------------------------------------------
+     1. Hide All Screen Chrome & Interactive Controls
+     ------------------------------------------------------------------------ */
+  .admin-sidebar,
+  .student-sidebar,
+  .admin-topbar,
+  .student-topbar,
+  .admin-page-header,
+  .admin-page-header-actions,
+  .header-action-group,
+  .timetable-session-bar,
+  .filter-bar-container,
+  .filter-bar-left,
+  .filter-bar-right,
+  .admin-table-pagination,
+  .admin-modal-backdrop,
+  .admin-toast,
+  .admin-banner,
+  .view-toggle-group,
+  .table-action-btns,
+  .admin-tabs-nav,
+  .data-table-footer,
+  .report-categories-grid,
+  .report-nav-strip,
+  .report-actions-bar,
+  .student-topbar,
+  .btn,
+  button,
+  select,
+  input,
+  .action-icon-btn,
+  .admin-data-table-container,
+  .timetable-slot-grid,
+  .no-print {
+    display: none !important;
+  }
+
+  .admin-printable-doc {
+    display: block !important;
+    width: 100% !important;
+  }
+
+  /* Uncollapse shell wrappers to 100% full printable area */
+  .admin-app-shell,
+  .student-shell,
+  .admin-main-wrapper,
+  .admin-content-container,
+  .student-content-container,
+  .admin-page-content,
+  .student-timetable-page {
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+  }
+
+  /* ------------------------------------------------------------------------
+     2. Fix Awkward Date, Time & Pill Line-Wrapping
+     ------------------------------------------------------------------------ */
+  .mono-date,
+  .table-date-cell,
+  .table-slot-cell,
+  .mono-id,
+  .cohort-tag,
+  .table-room-pill,
+  .student-desk-badge,
+  .venue-type-tag,
+  .print-nowrap {
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+    overflow: visible !important;
+  }
+
+  .table-date-cell,
+  .table-slot-cell,
+  .table-room-pill {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 4px !important;
+  }
+
+  .date-icon,
+  .slot-icon {
+    display: none !important; /* Hide tiny SVG icons to keep print crisp & clean */
+  }
+
+  /* ------------------------------------------------------------------------
+     3. Official Institutional Letterhead & Header Format
+     ------------------------------------------------------------------------ */
+  .official-print-header {
+    display: block !important;
+    width: 100% !important;
+    margin-bottom: 14px !important;
+    text-align: center !important;
+    page-break-after: avoid !important;
+  }
+
+  .print-institution-logo {
+    height: 36pt !important;
+    max-width: 140pt !important;
+    object-fit: contain !important;
+    display: inline-block !important;
+  }
+
+  .print-header-institution {
+    font-size: 14pt !important;
+    font-weight: 800 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+    color: #0f172a !important;
+    margin: 0 0 2px 0 !important;
+  }
+
+  .print-header-sub {
+    font-size: 8pt !important;
+    color: #475569 !important;
+    margin: 0 0 3px 0 !important;
+    letter-spacing: 0.2px !important;
+  }
+
+  .print-header-division {
+    font-size: 10pt !important;
+    font-weight: 700 !important;
+    color: #1e293b !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+    margin: 0 0 8px 0 !important;
+  }
+
+  .print-rule-double {
+    border-top: 2px solid #0f172a !important;
+    border-bottom: 1px solid #0f172a !important;
+    height: 3px !important;
+    margin: 6px 0 10px 0 !important;
+  }
+
+  .print-title-box {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    border-bottom: 1px solid #cbd5e1 !important;
+    padding-bottom: 6px !important;
+    margin-bottom: 12px !important;
+  }
+
+  .print-document-title {
+    font-size: 11pt !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    color: #0f172a !important;
+    letter-spacing: 0.3px !important;
+  }
+
+  .print-document-session {
+    font-size: 9.5pt !important;
+    font-weight: 600 !important;
+    color: #1e293b !important;
+  }
+
+  .print-meta-row {
+    display: flex !important;
+    justify-content: space-between !important;
+    font-size: 8pt !important;
+    color: #475569 !important;
+    margin-bottom: 10px !important;
+  }
+
+  /* ------------------------------------------------------------------------
+     4. Publication-Grade Examination Tables
+     ------------------------------------------------------------------------ */
+  .table-wrapper,
+  .data-table-container {
+    border: none !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+    margin-bottom: 12px !important;
+  }
+
+  .data-table,
+  .printable-table,
+  .printable-official-table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    border: 1.5px solid #1e293b !important;
+    page-break-inside: auto !important;
+    font-size: 8.5pt !important;
+  }
+
+  .data-table tr,
+  .printable-table tr,
+  .printable-official-table tr {
+    page-break-inside: avoid !important;
+    page-break-after: auto !important;
+  }
+
+  .data-table th,
+  .printable-table th,
+  .printable-official-table th {
+    background: #f1f5f9 !important;
+    color: #0f172a !important;
+    font-weight: 700 !important;
+    font-size: 8pt !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.4px !important;
+    border: 1px solid #1e293b !important;
+    padding: 6px 8px !important;
+    text-align: left !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .data-table td,
+  .printable-table td,
+  .printable-official-table td {
+    border: 1px solid #94a3b8 !important;
+    padding: 5px 8px !important;
+    color: #0f172a !important;
+    font-size: 8.5pt !important;
+    vertical-align: middle !important;
+    background: #ffffff !important;
+  }
+
+  .data-table tbody tr:nth-child(even) td,
+  .printable-table tbody tr:nth-child(even) td,
+  .printable-official-table tbody tr:nth-child(even) td {
+    background: #f8fafc !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .mono-id {
+    font-weight: 700 !important;
+    font-family: monospace !important;
+    color: #0f172a !important;
+  }
+
+  .subject-tbl-name {
+    font-weight: 600 !important;
+    color: #0f172a !important;
+  }
+
+  .cohort-tag,
+  .table-room-pill,
+  .badge {
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    font-weight: 500 !important;
+    color: #0f172a !important;
+  }
+
+  /* ------------------------------------------------------------------------
+     5. Official Attestation & Signatures (Admin Timetable & Reports)
+     ------------------------------------------------------------------------ */
+  .official-print-footer {
+    display: block !important;
+    width: 100% !important;
+    margin-top: 24px !important;
+    page-break-inside: avoid !important;
+  }
+
+  .print-signatures-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 20px !important;
+    margin-top: 36px !important;
+    padding-top: 10px !important;
+  }
+
+  .print-signature-col {
+    text-align: center !important;
+  }
+
+  .print-signature-line {
+    border-top: 1px solid #0f172a !important;
+    width: 80% !important;
+    margin: 0 auto 6px auto !important;
+  }
+
+  .print-signature-name {
+    font-weight: 700 !important;
+    font-size: 8.5pt !important;
+    color: #0f172a !important;
+    margin-bottom: 2px !important;
+  }
+
+  .print-signature-title {
+    font-size: 7.5pt !important;
+    color: #475569 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.3px !important;
+  }
+
+  .print-seal-box {
+    border: 1px dashed #64748b !important;
+    width: 65px !important;
+    height: 65px !important;
+    border-radius: 50% !important;
+    margin: 0 auto 6px auto !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 6.5pt !important;
+    color: #64748b !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.4px !important;
+    text-align: center !important;
+    padding: 4px !important;
+  }
+
+  .print-disclaimer {
+    border-top: 1px solid #e2e8f0 !important;
+    margin-top: 18px !important;
+    padding-top: 6px !important;
+    font-size: 7pt !important;
+    color: #64748b !important;
+    text-align: center !important;
+  }
+
+  /* ------------------------------------------------------------------------
+     6. Student Hall Ticket / Admit Card Print Layout
+     ------------------------------------------------------------------------ */
+  .student-timetable-page > *:not(.student-admit-card-print):not(.student-printable-doc) {
+    display: none !important;
+  }
+
+  .student-admit-card-print,
+  .student-printable-doc {
+    display: block !important;
+    width: 100% !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+
+  .student-candidate-card {
+    border: 1.5px solid #1e293b !important;
+    padding: 10px 14px !important;
+    margin-bottom: 12px !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    background: #ffffff !important;
+  }
+
+  .candidate-details-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px 18px !important;
+    font-size: 8.5pt !important;
+    flex: 1 !important;
+  }
+
+  .candidate-detail-item {
+    display: flex !important;
+    gap: 6px !important;
+  }
+
+  .cd-label {
+    font-weight: 700 !important;
+    color: #334155 !important;
+    min-width: 90px !important;
+  }
+
+  .cd-val {
+    color: #0f172a !important;
+    font-weight: 600 !important;
+  }
+
+  .candidate-photo-box {
+    width: 90px !important;
+    height: 105px !important;
+    border: 1px dashed #64748b !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    font-size: 6.5pt !important;
+    color: #64748b !important;
+    padding: 4px !important;
+    margin-left: 12px !important;
+    text-transform: uppercase !important;
+  }
+
+  .student-instructions-card {
+    border: 1px solid #cbd5e1 !important;
+    background: #f8fafc !important;
+    padding: 8px 12px !important;
+    margin-top: 14px !important;
+    font-size: 7.5pt !important;
+    color: #334155 !important;
+    page-break-inside: avoid !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .student-instructions-title {
+    font-weight: 700 !important;
+    font-size: 8pt !important;
+    color: #0f172a !important;
+    margin-bottom: 4px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.3px !important;
+  }
+
+  .student-instructions-list {
+    margin: 0 !important;
+    padding-left: 14px !important;
+  }
+
+  .student-instructions-list li {
+    margin-bottom: 2px !important;
+  }
+
+  .student-signature-row {
+    display: flex !important;
+    justify-content: space-between !important;
+    margin-top: 32px !important;
+    page-break-inside: avoid !important;
+  }
+
+  .student-sig-block {
+    text-align: center !important;
+    width: 170px !important;
+  }
+}

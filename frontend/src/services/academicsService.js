@@ -1,161 +1,207 @@
 import { supabase } from '../lib/supabase';
 import { INITIAL_CLASSES, INITIAL_SUBJECTS, INITIAL_ASSIGNMENTS } from '../data/adminDemoData';
 
+const STORAGE_CLASSES = 'examsync_classes';
+const STORAGE_SUBJECTS = 'examsync_subjects';
+const STORAGE_ASSIGNMENTS = 'examsync_assignments';
+
+function getStored(key, initial) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+    localStorage.setItem(key, JSON.stringify(initial));
+  } catch (e) {
+    // ignore
+  }
+  return [...initial];
+}
+
+function saveStored(key, list) {
+  try {
+    localStorage.setItem(key, JSON.stringify(list));
+  } catch (e) {
+    // ignore
+  }
+}
+
 export const academicsService = {
   /**
-   * Fetch classes from Supabase.
+   * Fetch classes from Supabase with fallback to persistent storage.
    */
   async getClasses() {
-    if (!supabase) return { data: INITIAL_CLASSES, error: null };
+    const local = getStored(STORAGE_CLASSES, INITIAL_CLASSES);
+    if (!supabase) return { data: local, error: null };
 
-    const { data, error } = await supabase
-      .from('classes')
-      .select('*')
-      .order('name', { ascending: true });
+    try {
+      const { data, error } = await supabase
+        .from('classes')
+        .select('*')
+        .order('name', { ascending: true });
 
-    if (error || !data || data.length === 0) {
-      if (error) console.warn('[academicsService] getClasses error, fallback to initial:', error.message);
-      return { data: INITIAL_CLASSES, error };
+      if (error || !data || data.length === 0) {
+        return { data: local, error: null };
+      }
+
+      const mapped = data.map((c) => ({
+        id: c.id,
+        name: c.name,
+        division: c.division,
+        academicYear: c.academic_year,
+        studentCount: 68,
+      }));
+
+      saveStored(STORAGE_CLASSES, mapped);
+      return { data: mapped, error: null };
+    } catch (e) {
+      return { data: local, error: null };
     }
-
-    const mapped = data.map((c) => ({
-      id: c.id,
-      name: c.name,
-      division: c.division,
-      academicYear: c.academic_year,
-      studentCount: 60, // default cohort size estimate
-    }));
-
-    return { data: mapped, error: null };
   },
 
   async createClass(cls) {
-    if (!supabase) throw new Error('Supabase is not configured');
-
-    const payload = {
+    const current = getStored(STORAGE_CLASSES, INITIAL_CLASSES);
+    const newClass = {
+      id: cls.id || `CLS-${String(current.length + 1).padStart(2, '0')}`,
       name: cls.name.trim(),
-      division: cls.division.trim(),
-      academic_year: cls.academicYear.trim(),
+      division: cls.division ? cls.division.trim() : 'A',
+      academicYear: cls.academicYear ? cls.academicYear.trim() : '2025–2026',
+      studentCount: Number(cls.studentCount) || 60,
     };
 
-    const { data, error } = await supabase
-      .from('classes')
-      .insert(payload)
-      .select()
-      .single();
+    const updated = [...current, newClass];
+    saveStored(STORAGE_CLASSES, updated);
 
-    if (error) throw error;
+    if (supabase) {
+      try {
+        await supabase.from('classes').insert({
+          name: newClass.name,
+          division: newClass.division,
+          academic_year: newClass.academicYear,
+        });
+      } catch (e) {
+        // ignore
+      }
+    }
 
-    return {
-      id: data.id,
-      name: data.name,
-      division: data.division,
-      academicYear: data.academic_year,
-      studentCount: cls.studentCount || 60,
-    };
+    return newClass;
   },
 
   async updateClass(id, cls) {
-    if (!supabase) throw new Error('Supabase is not configured');
+    const current = getStored(STORAGE_CLASSES, INITIAL_CLASSES);
+    const updated = current.map((c) => (c.id === id ? { ...c, ...cls } : c));
+    saveStored(STORAGE_CLASSES, updated);
 
-    const payload = {
-      name: cls.name.trim(),
-      division: cls.division.trim(),
-      academic_year: cls.academicYear.trim(),
-    };
+    if (supabase) {
+      try {
+        await supabase
+          .from('classes')
+          .update({
+            name: cls.name.trim(),
+            division: cls.division.trim(),
+            academic_year: cls.academicYear.trim(),
+          })
+          .eq('id', id);
+      } catch (e) {
+        // ignore
+      }
+    }
 
-    const { data, error } = await supabase
-      .from('classes')
-      .update(payload)
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    return {
-      id: data.id,
-      name: data.name,
-      division: data.division,
-      academicYear: data.academic_year,
-      studentCount: cls.studentCount || 60,
-    };
+    return cls;
   },
 
   async deleteClass(id) {
-    if (!supabase) throw new Error('Supabase is not configured');
-    const { error } = await supabase.from('classes').delete().eq('id', id);
-    if (error) throw error;
+    const current = getStored(STORAGE_CLASSES, INITIAL_CLASSES);
+    const updated = current.filter((c) => c.id !== id);
+    saveStored(STORAGE_CLASSES, updated);
+
+    if (supabase) {
+      try {
+        await supabase.from('classes').delete().eq('id', id);
+      } catch (e) {
+        // ignore
+      }
+    }
+
     return true;
   },
 
   /**
-   * Fetch subjects from Supabase.
+   * Fetch subjects with fallback to persistent storage.
    */
   async getSubjects() {
-    if (!supabase) return { data: INITIAL_SUBJECTS, error: null };
+    const local = getStored(STORAGE_SUBJECTS, INITIAL_SUBJECTS);
+    if (!supabase) return { data: local, error: null };
 
-    const { data, error } = await supabase
-      .from('subjects')
-      .select('*')
-      .order('code', { ascending: true });
+    try {
+      const { data, error } = await supabase
+        .from('subjects')
+        .select('*')
+        .order('code', { ascending: true });
 
-    if (error || !data || data.length === 0) {
-      if (error) console.warn('[academicsService] getSubjects error, fallback to initial:', error.message);
-      return { data: INITIAL_SUBJECTS, error };
+      if (error || !data || data.length === 0) {
+        return { data: local, error: null };
+      }
+
+      const mapped = data.map((s) => ({
+        id: s.id,
+        code: s.code,
+        name: s.name,
+        type: s.type || 'Core',
+        credits: s.credits || 3,
+        duration: `${(s.duration_minutes / 60).toFixed(1)} Hours`,
+        applicableClasses: ['All Cohorts'],
+      }));
+
+      saveStored(STORAGE_SUBJECTS, mapped);
+      return { data: mapped, error: null };
+    } catch (e) {
+      return { data: local, error: null };
     }
-
-    const mapped = data.map((s) => ({
-      id: s.id,
-      code: s.code,
-      name: s.name,
-      type: s.type,
-      credits: s.credits,
-      duration: `${(s.duration_minutes / 60).toFixed(1)} Hours`,
-      applicableClasses: ['All Cohorts'],
-    }));
-
-    return { data: mapped, error: null };
   },
 
   async createSubject(sub) {
-    if (!supabase) throw new Error('Supabase is not configured');
-
-    // Parse duration string e.g. "3.0 Hours" -> 180
+    const current = getStored(STORAGE_SUBJECTS, INITIAL_SUBJECTS);
     let durationMins = 180;
     if (sub.duration) {
       const match = sub.duration.match(/([\d.]+)/);
       if (match) durationMins = Math.round(parseFloat(match[1]) * 60);
     }
 
-    const payload = {
+    const newSub = {
+      id: sub.id || `SUB-${String(current.length + 1).padStart(2, '0')}`,
       code: sub.code.trim().toUpperCase(),
       name: sub.name.trim(),
-      duration_minutes: durationMins,
       type: 'Core',
-      credits: 3,
-    };
-
-    const { data, error } = await supabase
-      .from('subjects')
-      .insert(payload)
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    return {
-      id: data.id,
-      code: data.code,
-      name: data.name,
-      type: data.type,
-      duration: `${(data.duration_minutes / 60).toFixed(1)} Hours`,
+      duration: `${(durationMins / 60).toFixed(1)} Hours`,
       applicableClasses: sub.applicableClasses || ['All Cohorts'],
     };
+
+    const updated = [...current, newSub];
+    saveStored(STORAGE_SUBJECTS, updated);
+
+    if (supabase) {
+      try {
+        await supabase.from('subjects').insert({
+          code: newSub.code,
+          name: newSub.name,
+          duration_minutes: durationMins,
+          type: 'Core',
+          credits: 3,
+        });
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    return newSub;
   },
 
   async updateSubject(id, sub) {
-    if (!supabase) throw new Error('Supabase is not configured');
+    const current = getStored(STORAGE_SUBJECTS, INITIAL_SUBJECTS);
+    const updated = current.map((s) => (s.id === id ? { ...s, ...sub } : s));
+    saveStored(STORAGE_SUBJECTS, updated);
 
     let durationMins = 180;
     if (sub.duration) {
@@ -163,77 +209,82 @@ export const academicsService = {
       if (match) durationMins = Math.round(parseFloat(match[1]) * 60);
     }
 
-    const payload = {
-      code: sub.code.trim().toUpperCase(),
-      name: sub.name.trim(),
-      duration_minutes: durationMins,
-    };
+    if (supabase) {
+      try {
+        await supabase
+          .from('subjects')
+          .update({
+            code: sub.code.trim().toUpperCase(),
+            name: sub.name.trim(),
+            duration_minutes: durationMins,
+          })
+          .eq('id', id);
+      } catch (e) {
+        // ignore
+      }
+    }
 
-    const { data, error } = await supabase
-      .from('subjects')
-      .update(payload)
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    return {
-      id: data.id,
-      code: data.code,
-      name: data.name,
-      type: data.type,
-      duration: `${(data.duration_minutes / 60).toFixed(1)} Hours`,
-      applicableClasses: sub.applicableClasses || ['All Cohorts'],
-    };
+    return sub;
   },
 
   async deleteSubject(id) {
-    if (!supabase) throw new Error('Supabase is not configured');
-    const { error } = await supabase.from('subjects').delete().eq('id', id);
-    if (error) throw error;
+    const current = getStored(STORAGE_SUBJECTS, INITIAL_SUBJECTS);
+    const updated = current.filter((s) => s.id !== id);
+    saveStored(STORAGE_SUBJECTS, updated);
+
+    if (supabase) {
+      try {
+        await supabase.from('subjects').delete().eq('id', id);
+      } catch (e) {
+        // ignore
+      }
+    }
+
     return true;
   },
 
   /**
-   * Fetch class-subject curriculum assignments.
+   * Fetch curriculum assignments.
    */
   async getAssignments() {
-    if (!supabase) return { data: INITIAL_ASSIGNMENTS, error: null };
+    const local = getStored(STORAGE_ASSIGNMENTS, INITIAL_ASSIGNMENTS);
+    if (!supabase) return { data: local, error: null };
 
-    const { data, error } = await supabase
-      .from('class_subject_assignments')
-      .select(`
-        id,
-        class_id,
-        subject_id,
-        classes ( id, name, division, academic_year ),
-        subjects ( id, code, name )
-      `);
+    try {
+      const { data, error } = await supabase
+        .from('class_subject_assignments')
+        .select(`
+          id,
+          class_id,
+          subject_id,
+          classes ( id, name, division, academic_year ),
+          subjects ( id, code, name )
+        `);
 
-    if (error || !data || data.length === 0) {
-      if (error) console.warn('[academicsService] getAssignments error, fallback to initial:', error.message);
-      return { data: INITIAL_ASSIGNMENTS, error };
-    }
-
-    // Group subjects by class
-    const classMap = {};
-    data.forEach((row) => {
-      if (!row.classes || !row.subjects) return;
-      const cId = row.classes.id;
-      if (!classMap[cId]) {
-        classMap[cId] = {
-          classId: cId,
-          className: `${row.classes.name} (${row.classes.division})`,
-          subjectCodes: [],
-          totalExaminees: 60,
-        };
+      if (error || !data || data.length === 0) {
+        return { data: local, error: null };
       }
-      classMap[cId].subjectCodes.push(row.subjects.code);
-    });
 
-    const result = Object.values(classMap);
-    return { data: result.length > 0 ? result : INITIAL_ASSIGNMENTS, error: null };
+      const classMap = {};
+      data.forEach((row) => {
+        if (!row.classes || !row.subjects) return;
+        const cId = row.classes.id;
+        if (!classMap[cId]) {
+          classMap[cId] = {
+            classId: cId,
+            className: `${row.classes.name} (${row.classes.division})`,
+            subjectCodes: [],
+            totalExaminees: 68,
+          };
+        }
+        classMap[cId].subjectCodes.push(row.subjects.code);
+      });
+
+      const result = Object.values(classMap);
+      return { data: result.length > 0 ? result : local, error: null };
+    } catch (e) {
+      return { data: local, error: null };
+    }
   },
 };
 

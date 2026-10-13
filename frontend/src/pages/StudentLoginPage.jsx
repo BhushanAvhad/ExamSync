@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../context/useAuth';
 import {
   GraduationCapIcon,
@@ -11,10 +11,11 @@ import {
 } from '../components/ui/Icons';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
+import { studentsService } from '../services/studentsService';
 
 /**
  * ExamSync Student Login Page
- * Connects to Supabase Auth with verified role enforcement.
+ * Connects to Supabase Auth and dynamic student roster with verified role enforcement.
  * Role: Student access only.
  */
 export function StudentLoginPage({ onNavigate }) {
@@ -26,6 +27,21 @@ export function StudentLoginPage({ onNavigate }) {
 
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [enrolledPills, setEnrolledPills] = useState([]);
+
+  useEffect(() => {
+    async function loadRoster() {
+      try {
+        const { data } = await studentsService.getStudents();
+        if (data && data.length > 0) {
+          setEnrolledPills(data.slice(0, 4));
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+    loadRoster();
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -34,7 +50,7 @@ export function StudentLoginPage({ onNavigate }) {
     setErrorMessage('');
 
     if (!email.trim() || !password) {
-      setErrorMessage('Please enter both your email address and password.');
+      setErrorMessage('Please enter both your student email address and password.');
       return;
     }
 
@@ -68,7 +84,7 @@ export function StudentLoginPage({ onNavigate }) {
 
   return (
     <div className="login-page-wrapper">
-      {/* Subtle ambient lighting */}
+      {/* Ambient lighting */}
       <div
         className="ambient-glow-orb ambient-glow-primary"
         style={{ top: '15%', left: '30%', width: 500, height: 500 }}
@@ -89,7 +105,7 @@ export function StudentLoginPage({ onNavigate }) {
           </div>
           <h1 className="login-title">Student Sign In</h1>
           <p className="login-subtitle">
-            View your personalized examination schedule
+            Vidyalankar Institute of Technology (VIT) — Student Portal
           </p>
         </div>
 
@@ -122,7 +138,7 @@ export function StudentLoginPage({ onNavigate }) {
             label="Student Email Address"
             id="student-email"
             type="email"
-            placeholder="student@university.edu"
+            placeholder="student@vit.edu.in"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             prefixIcon={<UserIcon size={16} />}
@@ -165,6 +181,39 @@ export function StudentLoginPage({ onNavigate }) {
             {submitting ? 'Authenticating...' : 'Sign In as Student'}
           </Button>
 
+          {/* Quick autofill candidate pills for testing */}
+          {enrolledPills.length > 0 && (
+            <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
+              <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', marginBottom: 8 }}>
+                Quick Test Login (Enrolled VIT Candidates):
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {enrolledPills.map((s) => (
+                  <button
+                    key={s.id || s.email}
+                    type="button"
+                    onClick={() => {
+                      setEmail(s.email);
+                      setPassword('ExamSync@2026');
+                    }}
+                    style={{
+                      fontSize: '0.74rem',
+                      padding: '4px 8px',
+                      borderRadius: 6,
+                      background: 'var(--surface-secondary)',
+                      border: '1px solid var(--border)',
+                      color: 'var(--text-primary)',
+                      cursor: 'pointer',
+                    }}
+                    title={`Click to fill ${s.name}`}
+                  >
+                    {s.name} ({s.className})
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Navigation link: Don't have an account? Create Account */}
           <div style={{ textAlign: 'center', marginTop: 14, fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
             Don't have an account?{' '}
@@ -191,9 +240,9 @@ export function StudentLoginPage({ onNavigate }) {
 
         {/* Security Notice */}
         <div className="prototype-notice">
-          <strong>Protected Portal</strong>
+          <strong>Protected Candidate Portal</strong>
           <br />
-          Access is restricted to enrolled candidates. All login sessions are monitored.
+          Vidyalankar Institute of Technology (VIT), Wadala, Mumbai. All sessions authenticated.
         </div>
       </div>
     </div>

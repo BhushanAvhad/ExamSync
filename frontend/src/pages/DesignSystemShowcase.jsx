@@ -48,10 +48,10 @@ export function DesignSystemShowcase() {
   ];
 
   const demoData = [
-    { id: 'demo-1', code: 'CS-401', title: 'Algorithmic Graph Theory', slot: '09:00 — 12:00', status: 'optimized', statusLabel: 'Optimized' },
-    { id: 'demo-2', code: 'EE-205', title: 'Signals & Frequency Systems', slot: '13:00 — 16:00', status: 'scheduled', statusLabel: 'Scheduled' },
-    { id: 'demo-3', code: 'MATH-302', title: 'Matrix Algebra & Decompositions', slot: '09:00 — 12:00', status: 'pending', statusLabel: 'Pending' },
-    { id: 'demo-4', code: 'AI-420', title: 'Deep Reinforcement Learning', slot: '17:00 — 20:00', status: 'conflict', statusLabel: 'Conflict' },
+    { id: 'demo-1', code: 'CSC501', title: 'Theoretical Computer Science', slot: '13:30 — 16:30', status: 'optimized', statusLabel: 'Optimized' },
+    { id: 'demo-2', code: 'ECC301', title: 'Electronic Devices & Circuits', slot: '09:00 — 12:00', status: 'scheduled', statusLabel: 'Scheduled' },
+    { id: 'demo-3', code: 'FEC101', title: 'Applied Mathematics - I', slot: '09:00 — 12:00', status: 'pending', statusLabel: 'Pending' },
+    { id: 'demo-4', code: 'CSC701', title: 'Machine Learning', slot: '13:30 — 16:30', status: 'conflict', statusLabel: 'Conflict' },
   ];
 
   return (
@@ -127,7 +127,7 @@ export function DesignSystemShowcase() {
             <div>
               <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>Monospace Code & Numbers</span>
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.875rem', color: 'var(--accent)' }}>
-                MATH-201 // HALL-A // 2026-10-18T09:00:00Z // LOAD: 96.8%
+                CSC501 // BLOCK-A-204 // 2026-05-18T13:30:00Z // LOAD: 84.4%
               </div>
             </div>
           </div>
@@ -193,7 +193,7 @@ export function DesignSystemShowcase() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20, padding: 24, background: 'var(--surface)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
             <Input
               label="Standard Field"
-              placeholder="e.g. Computer Science"
+              placeholder="e.g. Computer Engineering (CMPN)"
               value={sampleInputVal}
               onChange={(e) => setSampleInputVal(e.target.value)}
               helperText="Institutional curriculum code"

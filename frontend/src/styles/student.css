@@ -517,8 +517,11 @@
 }
 
 /* Printable Document Format (hidden on screen, visible on print) */
-.student-printable-doc {
-  display: none;
+@media screen {
+  .student-printable-doc,
+  .student-admit-card-print {
+    display: none !important;
+  }
 }
 
 /* --------------------------------------------------------------------------
@@ -1097,11 +1100,12 @@
    Student Print Format (@media print)
    -------------------------------------------------------------------------- */
 @media print {
-  .student-printable-doc {
+  .student-printable-doc,
+  .student-admit-card-print {
     display: block !important;
   }
 
-  .student-timetable-page > *:not(.student-printable-doc) {
+  .student-timetable-page > *:not(.student-printable-doc):not(.student-admit-card-print) {
     display: none !important;
   }
 }

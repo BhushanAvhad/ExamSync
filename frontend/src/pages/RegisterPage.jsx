@@ -27,6 +27,10 @@ export function RegisterPage({ onNavigate }) {
 
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
+  const [academicYear, setAcademicYear] = useState('TE');
+  const [branch, setBranch] = useState('CMPN');
+  const [division, setDivision] = useState('A');
+  const [rollNo, setRollNo] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -44,8 +48,8 @@ export function RegisterPage({ onNavigate }) {
     setSuccessInfo(null);
 
     // Client-side input validation
-    if (!fullName.trim() || !email.trim() || !password || !confirmPassword) {
-      setErrorMessage('Please fill in all required fields.');
+    if (!fullName.trim() || !email.trim() || !password || !confirmPassword || !rollNo.trim()) {
+      setErrorMessage('Please fill in all required fields including your Roll / Registration Number.');
       return;
     }
 
@@ -62,7 +66,14 @@ export function RegisterPage({ onNavigate }) {
     setSubmitting(true);
 
     try {
-      const result = await signUpStudent(fullName, email, password);
+      const className = academicYear === 'FE' ? 'FE' : `${academicYear} ${branch}`;
+      const result = await signUpStudent(fullName, email, password, {
+        academicYear,
+        branch,
+        division,
+        rollNo: rollNo.trim(),
+        className,
+      });
 
       if (!result.success) {
         if (result.error?.toLowerCase().includes('rate limit')) {
@@ -113,7 +124,7 @@ export function RegisterPage({ onNavigate }) {
         style={{ bottom: '10%', right: '20%', width: 420, height: 420 }}
       />
 
-      <div className="login-card">
+      <div className="login-card" style={{ maxWidth: 520 }}>
         {/* Header */}
         <div className="login-header">
           <div className="login-brand-icon" style={{ background: 'linear-gradient(135deg, #0284c7 0%, #06b6d4 100%)' }}>
@@ -210,7 +221,7 @@ export function RegisterPage({ onNavigate }) {
               label="Student Email Address"
               id="register-email"
               type="email"
-              placeholder="student@university.edu"
+              placeholder="student@vit.edu.in"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               prefixIcon={<UserIcon size={16} />}
@@ -218,6 +229,72 @@ export function RegisterPage({ onNavigate }) {
               disabled={submitting}
               autoComplete="email"
             />
+
+            <div className="form-row-2col">
+              <div className="input-group">
+                <label htmlFor="register-year" className="input-label">Academic Year</label>
+                <select
+                  id="register-year"
+                  className="input-field"
+                  value={academicYear}
+                  onChange={(e) => setAcademicYear(e.target.value)}
+                  disabled={submitting}
+                  required
+                >
+                  <option value="FE">FE — First Year</option>
+                  <option value="SE">SE — Second Year</option>
+                  <option value="TE">TE — Third Year</option>
+                  <option value="BE">BE — Final Year</option>
+                </select>
+              </div>
+
+              <div className="input-group">
+                <label htmlFor="register-branch" className="input-label">Department / Branch</label>
+                <select
+                  id="register-branch"
+                  className="input-field"
+                  value={branch}
+                  onChange={(e) => setBranch(e.target.value)}
+                  disabled={submitting}
+                  required
+                >
+                  <option value="CMPN">Computer Engineering (CMPN)</option>
+                  <option value="INFT">Information Technology (INFT)</option>
+                  <option value="EXTC">Electronics & Telecommunication (EXTC)</option>
+                  <option value="ECS">Electronics & Computer Science (ECS)</option>
+                  <option value="BIOM">Biomedical Engineering (BIOM)</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="form-row-2col">
+              <div className="input-group">
+                <label htmlFor="register-division" className="input-label">Division</label>
+                <select
+                  id="register-division"
+                  className="input-field"
+                  value={division}
+                  onChange={(e) => setDivision(e.target.value)}
+                  disabled={submitting}
+                  required
+                >
+                  <option value="A">Division A</option>
+                  <option value="B">Division B</option>
+                  <option value="C">Division C</option>
+                </select>
+              </div>
+
+              <Input
+                label="Roll No / Candidate ID"
+                id="register-rollno"
+                type="text"
+                placeholder="e.g. 21102A0012"
+                value={rollNo}
+                onChange={(e) => setRollNo(e.target.value)}
+                required
+                disabled={submitting}
+              />
+            </div>
 
             <Input
               label="Password"
@@ -305,7 +382,7 @@ export function RegisterPage({ onNavigate }) {
         <div className="prototype-notice">
           <strong>Security Notice</strong>
           <br />
-          Student profiles are securely linked to verified university credentials with zero administrative privileges.
+          Student profiles are securely linked to verified VIT student credentials with zero administrative privileges.
         </div>
       </div>
     </div>

@@ -84,10 +84,10 @@ export function ExamSessionsPage() {
     setSessionForm({
       id: nextId,
       name: '',
-      term: 'Spring 2026',
-      startDate: '2026-06-01',
-      endDate: '2026-06-15',
-      applicableClasses: 'CS-Year 1, CS-Year 2, CS-Year 3',
+      term: 'Even Semester 2025–2026',
+      startDate: '2026-05-18',
+      endDate: '2026-05-30',
+      applicableClasses: 'FE, SE CMPN, TE INFT, BE EXTC',
       status: 'Draft',
       timeSlots: 'Morning (09:00 — 12:00), Afternoon (14:00 — 17:00)',
       description: 'Institutional examination period for the scheduled academic cycle.',
@@ -508,7 +508,7 @@ export function ExamSessionsPage() {
             id="session-classes"
             value={sessionForm.applicableClasses}
             onChange={(e) => setSessionForm({ ...sessionForm, applicableClasses: e.target.value })}
-            helper="e.g. CS-Year 1, CS-Year 2, SE-Year 2, or All Departments"
+            helper="e.g. FE, SE CMPN, TE INFT, BE EXTC, or All Departments"
           />
 
           <Input
