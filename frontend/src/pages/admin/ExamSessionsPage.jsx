@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { PageHeader } from '../../components/admin/PageHeader';
 import { FilterBar } from '../../components/admin/FilterBar';
 import { DataTable } from '../../components/admin/DataTable';
@@ -17,12 +17,30 @@ import {
   InfoIcon,
 } from '../../components/ui/Icons';
 import { INITIAL_EXAM_SESSIONS } from '../../data/adminDemoData';
+import { sessionsService } from '../../services/sessionsService';
 
 export function ExamSessionsPage() {
   const [sessions, setSessions] = useState(INITIAL_EXAM_SESSIONS);
+  const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState('cards'); // 'cards' | 'table'
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('all');
+
+  const loadSessions = useCallback(async () => {
+    try {
+      setLoading(true);
+      const { data } = await sessionsService.getExamSessions();
+      if (data) setSessions(data);
+    } catch (err) {
+      console.error('Failed to load exam sessions:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadSessions();
+  }, [loadSessions]);
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -107,7 +125,7 @@ export function ExamSessionsPage() {
     return Object.keys(errors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
 
@@ -121,22 +139,42 @@ export function ExamSessionsPage() {
         : sessionForm.timeSlots,
     };
 
-    if (editingSession) {
-      setSessions((prev) => prev.map((s) => (s.id === editingSession.id ? payload : s)));
-      setToastMessage(`Exam Session ${payload.name} updated (Session demo)`);
-    } else {
-      setSessions((prev) => [payload, ...prev]);
-      setToastMessage(`Exam Session ${payload.name} created (Session demo)`);
+    try {
+      if (editingSession) {
+        const updated = await sessionsService.updateExamSession(editingSession.id, payload);
+        setSessions((prev) => prev.map((s) => (s.id === editingSession.id ? updated : s)));
+        setToastMessage(`Exam Session ${payload.name} updated in database`);
+      } else {
+        const created = await sessionsService.createExamSession(payload);
+        setSessions((prev) => [created, ...prev]);
+        setToastMessage(`Exam Session ${payload.name} created in database`);
+      }
+      setIsModalOpen(false);
+    } catch (err) {
+      console.error('Error saving exam session:', err);
+      if (editingSession) {
+        setSessions((prev) => prev.map((s) => (s.id === editingSession.id ? payload : s)));
+      } else {
+        setSessions((prev) => [payload, ...prev]);
+      }
+      setToastMessage(`Exam Session ${payload.name} saved locally (${err.message})`);
+      setIsModalOpen(false);
     }
-
-    setIsModalOpen(false);
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!deleteTarget) return;
-    setSessions((prev) => prev.filter((s) => s.id !== deleteTarget.id));
-    setToastMessage(`Exam Session ${deleteTarget.name} removed (Session demo)`);
-    setDeleteTarget(null);
+    try {
+      await sessionsService.deleteExamSession(deleteTarget.id);
+      setSessions((prev) => prev.filter((s) => s.id !== deleteTarget.id));
+      setToastMessage(`Exam Session ${deleteTarget.name} removed from database`);
+    } catch (err) {
+      console.error('Error deleting exam session:', err);
+      setSessions((prev) => prev.filter((s) => s.id !== deleteTarget.id));
+      setToastMessage(`Exam Session ${deleteTarget.name} removed locally (${err.message})`);
+    } finally {
+      setDeleteTarget(null);
+    }
   };
 
   const columns = [

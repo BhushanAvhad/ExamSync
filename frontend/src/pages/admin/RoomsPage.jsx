@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { PageHeader } from '../../components/admin/PageHeader';
 import { StatCard } from '../../components/admin/StatCard';
 import { FilterBar } from '../../components/admin/FilterBar';
@@ -19,14 +19,32 @@ import {
   InfoIcon,
 } from '../../components/ui/Icons';
 import { INITIAL_ROOMS } from '../../data/adminDemoData';
+import { roomsService } from '../../services/roomsService';
 
 export function RoomsPage() {
   const [rooms, setRooms] = useState(INITIAL_ROOMS);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [selectedType, setSelectedType] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 8;
+
+  const loadRooms = useCallback(async () => {
+    try {
+      setLoading(true);
+      const { data } = await roomsService.getRooms();
+      if (data) setRooms(data);
+    } catch (err) {
+      console.error('Failed to load rooms:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadRooms();
+  }, [loadRooms]);
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -104,7 +122,7 @@ export function RoomsPage() {
     return Object.keys(errors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
 
@@ -113,22 +131,43 @@ export function RoomsPage() {
       capacity: Number(roomForm.capacity),
     };
 
-    if (editingRoom) {
-      setRooms((prev) => prev.map((r) => (r.id === editingRoom.id ? payload : r)));
-      setToastMessage(`Venue ${payload.roomNumber} updated (Session demo)`);
-    } else {
-      setRooms((prev) => [payload, ...prev]);
-      setToastMessage(`Venue ${payload.roomNumber} created (Session demo)`);
+    try {
+      if (editingRoom) {
+        const updated = await roomsService.updateRoom(editingRoom.id, payload);
+        setRooms((prev) => prev.map((r) => (r.id === editingRoom.id ? updated : r)));
+        setToastMessage(`Venue ${payload.roomNumber} updated in database`);
+      } else {
+        const created = await roomsService.createRoom(payload);
+        setRooms((prev) => [created, ...prev]);
+        setToastMessage(`Venue ${payload.roomNumber} created in database`);
+      }
+      setIsModalOpen(false);
+    } catch (err) {
+      console.error('Error saving venue:', err);
+      // Fallback update in state if backend RLS prevents write
+      if (editingRoom) {
+        setRooms((prev) => prev.map((r) => (r.id === editingRoom.id ? payload : r)));
+      } else {
+        setRooms((prev) => [payload, ...prev]);
+      }
+      setToastMessage(`Venue ${payload.roomNumber} saved locally (${err.message})`);
+      setIsModalOpen(false);
     }
-
-    setIsModalOpen(false);
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!deleteTarget) return;
-    setRooms((prev) => prev.filter((r) => r.id !== deleteTarget.id));
-    setToastMessage(`Venue ${deleteTarget.roomNumber} removed (Session demo)`);
-    setDeleteTarget(null);
+    try {
+      await roomsService.deleteRoom(deleteTarget.id);
+      setRooms((prev) => prev.filter((r) => r.id !== deleteTarget.id));
+      setToastMessage(`Venue ${deleteTarget.roomNumber} removed from database`);
+    } catch (err) {
+      console.error('Error deleting venue:', err);
+      setRooms((prev) => prev.filter((r) => r.id !== deleteTarget.id));
+      setToastMessage(`Venue ${deleteTarget.roomNumber} removed locally (${err.message})`);
+    } finally {
+      setDeleteTarget(null);
+    }
   };
 
   const columns = [

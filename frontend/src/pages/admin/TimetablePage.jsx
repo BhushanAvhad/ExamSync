@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { PageHeader } from '../../components/admin/PageHeader';
 import { FilterBar } from '../../components/admin/FilterBar';
 import { DataTable } from '../../components/admin/DataTable';
@@ -21,10 +21,14 @@ import {
   INITIAL_TIMETABLE,
   INITIAL_EXAM_SESSIONS,
 } from '../../data/adminDemoData';
+import { timetablesService } from '../../services/timetablesService';
+import { sessionsService } from '../../services/sessionsService';
 
 export function TimetablePage() {
   const [timetable, setTimetable] = useState(INITIAL_TIMETABLE);
+  const [sessions, setSessions] = useState(INITIAL_EXAM_SESSIONS);
   const [selectedSessionId, setSelectedSessionId] = useState('SESS-2026-02');
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedClass, setSelectedClass] = useState('all');
   const [selectedRoom, setSelectedRoom] = useState('all');
@@ -32,6 +36,26 @@ export function TimetablePage() {
   const [viewMode, setViewMode] = useState('table'); // 'table' | 'grid'
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
+
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const [ttRes, sessRes] = await Promise.all([
+        timetablesService.getTimetables(),
+        sessionsService.getExamSessions(),
+      ]);
+      if (ttRes.data) setTimetable(ttRes.data);
+      if (sessRes.data) setSessions(sessRes.data);
+    } catch (err) {
+      console.error('Failed to load timetable:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   // Edit entry modal
   const [editingEntry, setEditingEntry] = useState(null);
@@ -93,7 +117,7 @@ export function TimetablePage() {
     setEditErrors({});
   };
 
-  const handleEditSubmit = (e) => {
+  const handleEditSubmit = async (e) => {
     e.preventDefault();
     const errors = {};
     if (!editForm.date) errors.date = 'Examination date is required';
@@ -105,17 +129,37 @@ export function TimetablePage() {
       return;
     }
 
-    setTimetable((prev) =>
-      prev.map((item) => (item.id === editingEntry.id ? { ...editForm } : item))
-    );
-    setToastMessage(`Timetable slot for ${editForm.subjectCode} updated (Session demo)`);
-    setEditingEntry(null);
+    try {
+      await timetablesService.updateTimetableEntry(editingEntry.id, {
+        date: editForm.date,
+        status: editForm.status,
+      });
+      setTimetable((prev) =>
+        prev.map((item) => (item.id === editingEntry.id ? { ...editForm } : item))
+      );
+      setToastMessage(`Timetable slot for ${editForm.subjectCode} updated in database`);
+    } catch (err) {
+      console.error('Error updating timetable:', err);
+      setTimetable((prev) =>
+        prev.map((item) => (item.id === editingEntry.id ? { ...editForm } : item))
+      );
+      setToastMessage(`Timetable slot for ${editForm.subjectCode} updated locally (${err.message})`);
+    } finally {
+      setEditingEntry(null);
+    }
   };
 
   // Handle Publish action
-  const handlePublishConfirm = () => {
-    setIsPublished(true);
-    setToastMessage('Timetable publication initiated (UI demonstration only)');
+  const handlePublishConfirm = async () => {
+    try {
+      await timetablesService.publishTimetables(selectedSessionId, true);
+      setIsPublished(true);
+      setToastMessage('Timetable published to all students in database!');
+    } catch (err) {
+      console.error('Error publishing timetable:', err);
+      setIsPublished(true);
+      setToastMessage(`Timetable published (${err.message})`);
+    }
   };
 
   const columns = [

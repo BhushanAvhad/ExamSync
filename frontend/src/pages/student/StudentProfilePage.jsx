@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { PageHeader } from '../../components/admin/PageHeader';
 import { Toast } from '../../components/admin/Toast';
 import { Button } from '../../components/ui/Button';
@@ -6,8 +6,11 @@ import { Input } from '../../components/ui/Input';
 import { Badge } from '../../components/ui/Badge';
 import { EditIcon } from '../../components/ui/Icons';
 import { STUDENT_PROFILE } from '../../data/studentDemoData';
+import { useAuth } from '../../context/useAuth';
+import { studentPortalService } from '../../services/studentPortalService';
 
 export function StudentProfilePage() {
+  const { user, profile: authProfile } = useAuth();
   const [profile, setProfile] = useState(STUDENT_PROFILE);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
@@ -17,6 +20,30 @@ export function StudentProfilePage() {
   });
   const [formErrors, setFormErrors] = useState({});
   const [toastMessage, setToastMessage] = useState(null);
+
+  useEffect(() => {
+    async function load() {
+      if (user?.id) {
+        const { data } = await studentPortalService.getProfile(user.id, user.email);
+        if (data) {
+          setProfile(data);
+          setFormData({
+            name: data.name,
+            email: data.email,
+            phone: data.phone || '',
+          });
+        }
+      } else if (authProfile) {
+        setProfile((prev) => ({
+          ...prev,
+          name: authProfile.full_name || prev.name,
+          email: authProfile.email || prev.email,
+          phone: authProfile.phone || prev.phone,
+        }));
+      }
+    }
+    load();
+  }, [user, authProfile]);
 
   const validate = () => {
     const errors = {};
@@ -30,20 +57,38 @@ export function StudentProfilePage() {
     return Object.keys(errors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
 
-    setProfile((prev) => ({
-      ...prev,
-      name: formData.name,
-      email: formData.email,
-      phone: formData.phone,
-      initials: formData.name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase(),
-    }));
+    try {
+      if (user?.id) {
+        await studentPortalService.updateProfile(user.id, {
+          name: formData.name,
+          phone: formData.phone,
+        });
+      }
+      setProfile((prev) => ({
+        ...prev,
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        initials: formData.name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase(),
+      }));
+      setToastMessage('Student contact profile updated in database');
+    } catch (err) {
+      console.error('Failed to update student profile:', err);
+      setProfile((prev) => ({
+        ...prev,
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        initials: formData.name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase(),
+      }));
+      setToastMessage(`Profile saved locally (${err.message})`);
+    }
 
     setIsEditing(false);
-    setToastMessage('Student contact profile updated (Session demo)');
   };
 
   return (

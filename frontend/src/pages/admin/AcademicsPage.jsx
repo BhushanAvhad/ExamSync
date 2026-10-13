@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { PageHeader } from '../../components/admin/PageHeader';
 import { FilterBar } from '../../components/admin/FilterBar';
 import { DataTable } from '../../components/admin/DataTable';
@@ -18,6 +18,7 @@ import {
   INITIAL_SUBJECTS,
   INITIAL_ASSIGNMENTS,
 } from '../../data/adminDemoData';
+import { academicsService } from '../../services/academicsService';
 
 export function AcademicsPage() {
   const [activeTab, setActiveTab] = useState('classes'); // 'classes' | 'subjects' | 'assignments'
@@ -25,7 +26,31 @@ export function AcademicsPage() {
   // Local state for tabs
   const [classes, setClasses] = useState(INITIAL_CLASSES);
   const [subjects, setSubjects] = useState(INITIAL_SUBJECTS);
-  const [assignments] = useState(INITIAL_ASSIGNMENTS);
+  const [assignments, setAssignments] = useState(INITIAL_ASSIGNMENTS);
+  const [loading, setLoading] = useState(true);
+
+  // Load from Supabase on mount
+  const loadAcademics = useCallback(async () => {
+    try {
+      setLoading(true);
+      const [classesRes, subjectsRes, assignmentsRes] = await Promise.all([
+        academicsService.getClasses(),
+        academicsService.getSubjects(),
+        academicsService.getAssignments(),
+      ]);
+      if (classesRes.data) setClasses(classesRes.data);
+      if (subjectsRes.data) setSubjects(subjectsRes.data);
+      if (assignmentsRes.data) setAssignments(assignmentsRes.data);
+    } catch (err) {
+      console.error('Failed to load academics data:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadAcademics();
+  }, [loadAcademics]);
 
   // Search and filter
   const [searchQuery, setSearchQuery] = useState('');
@@ -93,7 +118,7 @@ export function AcademicsPage() {
     setIsClassModalOpen(true);
   };
 
-  const handleClassSubmit = (e) => {
+  const handleClassSubmit = async (e) => {
     e.preventDefault();
     const errors = {};
     if (!classForm.name.trim()) errors.name = 'Class name is required (e.g. CS-Year 1)';
@@ -105,23 +130,47 @@ export function AcademicsPage() {
       return;
     }
 
-    if (editingClass) {
-      setClasses((prev) =>
-        prev.map((item) => (item.id === editingClass.id ? { ...classForm, studentCount: Number(classForm.studentCount) } : item))
-      );
-      setToastMessage(`Class ${classForm.name} updated (Session demo)`);
-    } else {
-      setClasses((prev) => [...prev, { ...classForm, studentCount: Number(classForm.studentCount) }]);
-      setToastMessage(`Class ${classForm.name} created (Session demo)`);
+    try {
+      if (editingClass) {
+        const updated = await academicsService.updateClass(editingClass.id, classForm);
+        setClasses((prev) =>
+          prev.map((item) => (item.id === editingClass.id ? updated : item))
+        );
+        setToastMessage(`Class ${classForm.name} updated in database`);
+      } else {
+        const created = await academicsService.createClass(classForm);
+        setClasses((prev) => [...prev, created]);
+        setToastMessage(`Class ${classForm.name} created in database`);
+      }
+      setIsClassModalOpen(false);
+    } catch (err) {
+      console.error('Error saving class:', err);
+      // Local fallback
+      if (editingClass) {
+        setClasses((prev) =>
+          prev.map((item) => (item.id === editingClass.id ? { ...classForm, studentCount: Number(classForm.studentCount) } : item))
+        );
+      } else {
+        setClasses((prev) => [...prev, { ...classForm, studentCount: Number(classForm.studentCount) }]);
+      }
+      setToastMessage(`Class ${classForm.name} saved locally (${err.message})`);
+      setIsClassModalOpen(false);
     }
-    setIsClassModalOpen(false);
   };
 
-  const handleConfirmDeleteClass = () => {
+  const handleConfirmDeleteClass = async () => {
     if (!deleteClassTarget) return;
-    setClasses((prev) => prev.filter((c) => c.id !== deleteClassTarget.id));
-    setToastMessage(`Class ${deleteClassTarget.name} removed (Session demo)`);
-    setDeleteClassTarget(null);
+    try {
+      await academicsService.deleteClass(deleteClassTarget.id);
+      setClasses((prev) => prev.filter((c) => c.id !== deleteClassTarget.id));
+      setToastMessage(`Class ${deleteClassTarget.name} removed from database`);
+    } catch (err) {
+      console.error('Error deleting class:', err);
+      setClasses((prev) => prev.filter((c) => c.id !== deleteClassTarget.id));
+      setToastMessage(`Class ${deleteClassTarget.name} removed locally (${err.message})`);
+    } finally {
+      setDeleteClassTarget(null);
+    }
   };
 
   // Handle Subject Modal
@@ -143,7 +192,7 @@ export function AcademicsPage() {
     setIsSubjectModalOpen(true);
   };
 
-  const handleSubjectSubmit = (e) => {
+  const handleSubjectSubmit = async (e) => {
     e.preventDefault();
     const errors = {};
     if (!subjectForm.code.trim()) errors.code = 'Subject code is required (e.g. CS-301)';
@@ -162,21 +211,42 @@ export function AcademicsPage() {
       applicableClasses: formattedClasses,
     };
 
-    if (editingSubject) {
-      setSubjects((prev) => prev.map((item) => (item.id === editingSubject.id ? payload : item)));
-      setToastMessage(`Subject ${subjectForm.code} updated (Session demo)`);
-    } else {
-      setSubjects((prev) => [...prev, payload]);
-      setToastMessage(`Subject ${subjectForm.code} created (Session demo)`);
+    try {
+      if (editingSubject) {
+        const updated = await academicsService.updateSubject(editingSubject.id, payload);
+        setSubjects((prev) => prev.map((item) => (item.id === editingSubject.id ? updated : item)));
+        setToastMessage(`Subject ${subjectForm.code} updated in database`);
+      } else {
+        const created = await academicsService.createSubject(payload);
+        setSubjects((prev) => [...prev, created]);
+        setToastMessage(`Subject ${subjectForm.code} created in database`);
+      }
+      setIsSubjectModalOpen(false);
+    } catch (err) {
+      console.error('Error saving subject:', err);
+      if (editingSubject) {
+        setSubjects((prev) => prev.map((item) => (item.id === editingSubject.id ? payload : item)));
+      } else {
+        setSubjects((prev) => [...prev, payload]);
+      }
+      setToastMessage(`Subject ${subjectForm.code} saved locally (${err.message})`);
+      setIsSubjectModalOpen(false);
     }
-    setIsSubjectModalOpen(false);
   };
 
-  const handleConfirmDeleteSubject = () => {
+  const handleConfirmDeleteSubject = async () => {
     if (!deleteSubjectTarget) return;
-    setSubjects((prev) => prev.filter((s) => s.id !== deleteSubjectTarget.id));
-    setToastMessage(`Subject ${deleteSubjectTarget.code} removed (Session demo)`);
-    setDeleteSubjectTarget(null);
+    try {
+      await academicsService.deleteSubject(deleteSubjectTarget.id);
+      setSubjects((prev) => prev.filter((s) => s.id !== deleteSubjectTarget.id));
+      setToastMessage(`Subject ${deleteSubjectTarget.code} removed from database`);
+    } catch (err) {
+      console.error('Error deleting subject:', err);
+      setSubjects((prev) => prev.filter((s) => s.id !== deleteSubjectTarget.id));
+      setToastMessage(`Subject ${deleteSubjectTarget.code} removed locally (${err.message})`);
+    } finally {
+      setDeleteSubjectTarget(null);
+    }
   };
 
   // Columns for Classes Table

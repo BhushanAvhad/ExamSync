@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { PageHeader } from '../../components/admin/PageHeader';
 import { StatCard } from '../../components/admin/StatCard';
 import { Button } from '../../components/ui/Button';
@@ -17,23 +18,52 @@ import {
   STUDENT_TIMETABLE_ENTRIES,
   STUDENT_SUBJECTS,
 } from '../../data/studentDemoData';
+import { useAuth } from '../../context/useAuth';
+import { studentPortalService } from '../../services/studentPortalService';
 
 export function StudentOverviewPage({ onNavigate }) {
-  const nextExam = STUDENT_TIMETABLE_ENTRIES[0];
-  const totalUpcoming = STUDENT_TIMETABLE_ENTRIES.length;
-  const totalSubjects = STUDENT_SUBJECTS.length;
+  const { user, profile: authProfile } = useAuth();
+  const [profile, setProfile] = useState(STUDENT_PROFILE);
+  const [timetable, setTimetable] = useState(STUDENT_TIMETABLE_ENTRIES);
+  const [subjects, setSubjects] = useState(STUDENT_SUBJECTS);
+
+  useEffect(() => {
+    async function load() {
+      if (user?.id) {
+        const [profRes, ttRes, subRes] = await Promise.all([
+          studentPortalService.getProfile(user.id, user.email),
+          studentPortalService.getStudentTimetable(user.id),
+          studentPortalService.getRegisteredSubjects(user.id),
+        ]);
+        if (profRes.data) setProfile(profRes.data);
+        if (ttRes.data && ttRes.data.length > 0) setTimetable(ttRes.data);
+        if (subRes.data && subRes.data.length > 0) setSubjects(subRes.data);
+      } else if (authProfile) {
+        setProfile((prev) => ({
+          ...prev,
+          name: authProfile.full_name || prev.name,
+          email: authProfile.email || prev.email,
+        }));
+      }
+    }
+    load();
+  }, [user, authProfile]);
+
+  const nextExam = timetable[0];
+  const totalUpcoming = timetable.length;
+  const totalSubjects = subjects.length;
 
   return (
     <div className="admin-page-content student-overview-content">
       {/* Welcome Page Header */}
       <PageHeader
-        title={`Welcome back, ${STUDENT_PROFILE.name}`}
+        title={`Welcome back, ${profile.name}`}
         subtitle="Here is an overview of your upcoming examinations, venue allocations, and academic schedule."
         category="Student Portal"
         badge={
           <span className="overview-cycle-pill student-cycle-pill">
             <span className="cycle-dot" />
-            {STUDENT_PROFILE.className} • {STUDENT_PROFILE.division}
+            {profile.className} • {profile.division}
           </span>
         }
         actions={

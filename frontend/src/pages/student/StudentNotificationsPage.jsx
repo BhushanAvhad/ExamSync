@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { PageHeader } from '../../components/admin/PageHeader';
 import { FilterBar } from '../../components/admin/FilterBar';
 import { Button } from '../../components/ui/Button';
@@ -12,13 +12,32 @@ import {
   ClockIcon,
 } from '../../components/ui/Icons';
 import { INITIAL_STUDENT_NOTIFICATIONS } from '../../data/studentDemoData';
+import { useAuth } from '../../context/useAuth';
+import { studentPortalService } from '../../services/studentPortalService';
 
 export function StudentNotificationsPage() {
+  const { user } = useAuth();
   const [notifications, setNotifications] = useState(INITIAL_STUDENT_NOTIFICATIONS);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [filterReadStatus, setFilterReadStatus] = useState('all'); // 'all' | 'unread' | 'read'
   const [toastMessage, setToastMessage] = useState(null);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        setLoading(true);
+        const { data } = await studentPortalService.getNotifications(user?.id);
+        if (data && data.length > 0) setNotifications(data);
+      } catch (err) {
+        console.error('Failed to load notifications:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, [user]);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
@@ -43,16 +62,28 @@ export function StudentNotificationsPage() {
     });
   }, [notifications, searchQuery, selectedCategory, filterReadStatus]);
 
-  const handleMarkAsRead = (id) => {
+  const handleMarkAsRead = async (id) => {
+    try {
+      await studentPortalService.markNotificationRead(id);
+    } catch (e) {
+      console.warn('markNotificationRead local fallback:', e);
+    }
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, read: true } : n))
     );
-    setToastMessage('Notification marked as read (UI demo)');
+    setToastMessage('Notification marked as read');
   };
 
-  const handleMarkAllAsRead = () => {
+  const handleMarkAllAsRead = async () => {
+    for (const n of notifications) {
+      if (!n.read) {
+        try {
+          await studentPortalService.markNotificationRead(n.id);
+        } catch (_) {}
+      }
+    }
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-    setToastMessage('All notifications marked as read (UI demo)');
+    setToastMessage('All notifications marked as read');
   };
 
   const getCategoryIcon = (category) => {

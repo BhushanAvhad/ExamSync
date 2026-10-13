@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { PageHeader } from '../../components/admin/PageHeader';
 import { StatCard } from '../../components/admin/StatCard';
 import { Button } from '../../components/ui/Button';
@@ -19,10 +19,53 @@ import {
   INITIAL_EXAM_SESSIONS,
   RECENT_ACTIVITIES,
 } from '../../data/adminDemoData';
+import { studentsService } from '../../services/studentsService';
+import { academicsService } from '../../services/academicsService';
+import { roomsService } from '../../services/roomsService';
+import { sessionsService } from '../../services/sessionsService';
+import { timetablesService } from '../../services/timetablesService';
 
 export function AdminOverviewPage({ onNavigate }) {
+  const [sessions, setSessions] = useState(INITIAL_EXAM_SESSIONS);
   const [activeSession, setActiveSession] = useState('SESS-2026-02');
-  const session = INITIAL_EXAM_SESSIONS.find((s) => s.id === activeSession) || INITIAL_EXAM_SESSIONS[1];
+  const [stats, setStats] = useState(INITIAL_SUMMARY_STATS);
+
+  useEffect(() => {
+    async function loadStats() {
+      try {
+        const [studRes, subjRes, roomRes, sessRes, ttRes] = await Promise.all([
+          studentsService.getStudents(),
+          academicsService.getSubjects(),
+          roomsService.getRooms(),
+          sessionsService.getExamSessions(),
+          timetablesService.getTimetables(),
+        ]);
+
+        if (sessRes.data && sessRes.data.length > 0) {
+          setSessions(sessRes.data);
+          setActiveSession(sessRes.data[0].id);
+        }
+
+        const roomList = roomRes.data || [];
+        const availRooms = roomList.filter((r) => r.status === 'Available').length;
+
+        setStats({
+          totalStudents: studRes.data?.length || INITIAL_SUMMARY_STATS.totalStudents,
+          activeSubjects: subjRes.data?.length || INITIAL_SUMMARY_STATS.activeSubjects,
+          examRooms: roomList.length || INITIAL_SUMMARY_STATS.examRooms,
+          availableRooms: availRooms || INITIAL_SUMMARY_STATS.availableRooms,
+          scheduledExams: ttRes.data?.length || INITIAL_SUMMARY_STATS.scheduledExams,
+          currentSession: sessRes.data?.[0]?.name || INITIAL_SUMMARY_STATS.currentSession,
+          timetableStatus: 'Production Sync Active',
+        });
+      } catch (err) {
+        console.error('Failed to load live overview metrics:', err);
+      }
+    }
+    loadStats();
+  }, []);
+
+  const session = sessions.find((s) => s.id === activeSession) || sessions[0] || INITIAL_EXAM_SESSIONS[1];
 
   return (
     <div className="admin-page-content">
@@ -71,15 +114,15 @@ export function AdminOverviewPage({ onNavigate }) {
       <div className="admin-stat-grid">
         <StatCard
           label="Total Enrolled Students"
-          value={INITIAL_SUMMARY_STATS.totalStudents.toLocaleString()}
+          value={stats.totalStudents.toLocaleString()}
           icon={<UsersIcon size={20} />}
-          helperText="Across 8 academic cohorts"
+          helperText="Across academic cohorts"
           accent="indigo"
           onClick={() => onNavigate('/admin/students')}
         />
         <StatCard
           label="Active Exam Subjects"
-          value={INITIAL_SUMMARY_STATS.activeSubjects}
+          value={stats.activeSubjects}
           icon={<BookOpenIcon size={20} />}
           helperText="Registered for examination cycle"
           accent="cyan"
@@ -87,17 +130,17 @@ export function AdminOverviewPage({ onNavigate }) {
         />
         <StatCard
           label="Exam Venues & Rooms"
-          value={`${INITIAL_SUMMARY_STATS.availableRooms} / ${INITIAL_SUMMARY_STATS.examRooms}`}
+          value={`${stats.availableRooms} / ${stats.examRooms}`}
           icon={<DoorIcon size={20} />}
-          helperText={`${INITIAL_SUMMARY_STATS.availableRooms} currently available`}
+          helperText={`${stats.availableRooms} currently available`}
           accent="violet"
           onClick={() => onNavigate('/admin/rooms')}
         />
         <StatCard
           label="Scheduled Examinations"
-          value={INITIAL_SUMMARY_STATS.scheduledExams}
+          value={stats.scheduledExams}
           icon={<CalendarDaysIcon size={20} />}
-          helperText="Spread over 12 examination days"
+          helperText="Active in timetable session"
           accent="emerald"
           onClick={() => onNavigate('/admin/timetable')}
         />

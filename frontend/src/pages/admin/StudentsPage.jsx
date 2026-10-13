@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { PageHeader } from '../../components/admin/PageHeader';
 import { FilterBar } from '../../components/admin/FilterBar';
 import { DataTable } from '../../components/admin/DataTable';
@@ -10,14 +10,32 @@ import { Input } from '../../components/ui/Input';
 import { Badge } from '../../components/ui/Badge';
 import { PlusIcon, EditIcon, TrashIcon } from '../../components/ui/Icons';
 import { INITIAL_STUDENTS } from '../../data/adminDemoData';
+import { studentsService } from '../../services/studentsService';
 
 export function StudentsPage() {
   const [students, setStudents] = useState(INITIAL_STUDENTS);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedClass, setSelectedClass] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 8;
+
+  const loadStudents = useCallback(async () => {
+    try {
+      setLoading(true);
+      const { data } = await studentsService.getStudents();
+      if (data) setStudents(data);
+    } catch (err) {
+      console.error('Failed to load students:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadStudents();
+  }, [loadStudents]);
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { PageHeader } from '../../components/admin/PageHeader';
 import { FilterBar } from '../../components/admin/FilterBar';
 import { DataTable } from '../../components/admin/DataTable';
@@ -13,12 +13,31 @@ import {
   STUDENT_PROFILE,
   STUDENT_SUBJECTS,
 } from '../../data/studentDemoData';
+import { useAuth } from '../../context/useAuth';
+import { studentPortalService } from '../../services/studentPortalService';
 
 export function StudentSubjectsPage() {
-  const [subjects] = useState(STUDENT_SUBJECTS);
+  const { user } = useAuth();
+  const [subjects, setSubjects] = useState(STUDENT_SUBJECTS);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState('all');
   const [viewMode, setViewMode] = useState('cards'); // 'cards' | 'table'
+
+  useEffect(() => {
+    async function load() {
+      try {
+        setLoading(true);
+        const { data } = await studentPortalService.getRegisteredSubjects(user?.id);
+        if (data && data.length > 0) setSubjects(data);
+      } catch (err) {
+        console.error('Failed to load registered subjects:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, [user]);
 
   const filteredSubjects = useMemo(() => {
     return subjects.filter((s) => {
