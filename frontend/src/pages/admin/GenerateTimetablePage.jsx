@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { PageHeader } from '../../components/admin/PageHeader';
 import { Modal } from '../../components/admin/Modal';
 import { Button } from '../../components/ui/Button';
@@ -13,6 +13,7 @@ import {
   InfoIcon,
   ArrowRightIcon,
   ChevronLeftIcon,
+  ClockIcon,
 } from '../../components/ui/Icons';
 import {
   INITIAL_EXAM_SESSIONS,
@@ -20,10 +21,48 @@ import {
   INITIAL_CLASSES,
   INITIAL_ROOMS,
 } from '../../data/adminDemoData';
+import { sessionsService } from '../../services/sessionsService';
+import { academicsService } from '../../services/academicsService';
+import { roomsService } from '../../services/roomsService';
+import { generatorService } from '../../services/generatorService';
 
 export function GenerateTimetablePage({ onNavigate }) {
   const [currentStep, setCurrentStep] = useState(1);
+  const [sessions, setSessions] = useState(INITIAL_EXAM_SESSIONS);
   const [selectedSessionId, setSelectedSessionId] = useState('SESS-2026-02');
+  const [subjects, setSubjects] = useState(INITIAL_SUBJECTS);
+  const [classes, setClasses] = useState(INITIAL_CLASSES);
+  const [rooms, setRooms] = useState(INITIAL_ROOMS);
+
+  // Generation execution state
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generationResult, setGenerationResult] = useState(null);
+  const [generationError, setGenerationError] = useState(null);
+  const [showResultModal, setShowResultModal] = useState(false);
+
+  // Load live data from Supabase
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const [sessRes, subRes, clsRes, rmRes] = await Promise.all([
+          sessionsService.getExamSessions(),
+          academicsService.getSubjects(),
+          academicsService.getClasses(),
+          roomsService.getRooms(),
+        ]);
+        if (sessRes.data && sessRes.data.length > 0) {
+          setSessions(sessRes.data);
+          setSelectedSessionId(sessRes.data[0].id);
+        }
+        if (subRes.data) setSubjects(subRes.data);
+        if (clsRes.data) setClasses(clsRes.data);
+        if (rmRes.data) setRooms(rmRes.data);
+      } catch (err) {
+        console.error('Failed to load scheduling wizard data:', err);
+      }
+    }
+    loadData();
+  }, []);
 
   // Step 3 Constraints state
   const [mandatoryConstraints, setMandatoryConstraints] = useState({
@@ -48,11 +87,8 @@ export function GenerateTimetablePage({ onNavigate }) {
     allowSoftConstraintRelaxation: false,
   });
 
-  // Demo Generation Notice Modal
-  const [showDemoModal, setShowDemoModal] = useState(false);
-
   const selectedSession =
-    INITIAL_EXAM_SESSIONS.find((s) => s.id === selectedSessionId) || INITIAL_EXAM_SESSIONS[1];
+    sessions.find((s) => s.id === selectedSessionId) || sessions[0] || INITIAL_EXAM_SESSIONS[1];
 
   const steps = [
     { number: 1, label: 'Select Session' },
@@ -70,8 +106,37 @@ export function GenerateTimetablePage({ onNavigate }) {
     setOptionalPreferences((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const handleGenerateClick = () => {
-    setShowDemoModal(true);
+  const handleGenerateClick = async () => {
+    try {
+      setIsGenerating(true);
+      setGenerationError(null);
+      setGenerationResult(null);
+
+      const maxGens = settings.algorithmMode.includes('Fast') ? 80 : 140;
+      const response = await generatorService.generate({
+        sessionId: selectedSessionId,
+        settings: {
+          maxGenerations: maxGens,
+          populationSize: 60,
+          mutationRate: 0.18,
+        },
+        saveAsDraft: true,
+      });
+
+      if (response.ok && response.data.success) {
+        setGenerationResult(response.data);
+      } else {
+        setGenerationError(response.data?.error || 'No feasible zero-conflict schedule found within search limits.');
+        setGenerationResult(response.data);
+      }
+      setShowResultModal(true);
+    } catch (err) {
+      console.error('Generation request failed:', err);
+      setGenerationError(`Engine connection failure: ${err.message}. Ensure the Express backend is running on port 5000.`);
+      setShowResultModal(true);
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   return (
@@ -461,10 +526,11 @@ export function GenerateTimetablePage({ onNavigate }) {
                 variant="primary"
                 size="lg"
                 icon={<SparklesIcon size={18} />}
+                disabled={isGenerating}
                 onClick={handleGenerateClick}
-                style={{ minWidth: 220 }}
+                style={{ minWidth: 240 }}
               >
-                Generate Timetable
+                {isGenerating ? 'Running Genetic Optimization...' : 'Generate Timetable'}
               </Button>
             </div>
           </div>
@@ -476,7 +542,7 @@ export function GenerateTimetablePage({ onNavigate }) {
             variant="secondary"
             size="sm"
             icon={<ChevronLeftIcon size={14} />}
-            disabled={currentStep === 1}
+            disabled={currentStep === 1 || isGenerating}
             onClick={() => setCurrentStep((prev) => Math.max(1, prev - 1))}
           >
             Previous Step
@@ -496,61 +562,112 @@ export function GenerateTimetablePage({ onNavigate }) {
               variant="primary"
               size="sm"
               icon={<SparklesIcon size={16} />}
+              disabled={isGenerating}
               onClick={handleGenerateClick}
             >
-              Generate Timetable
+              {isGenerating ? 'Optimizing...' : 'Generate Timetable'}
             </Button>
           )}
         </div>
       </div>
 
-      {/* Demo Modal explicitly stating scheduling engine not connected */}
+      {/* Real Genetic Algorithm Execution & Validation Results Modal */}
       <Modal
-        isOpen={showDemoModal}
-        onClose={() => setShowDemoModal(false)}
-        title="Scheduling Engine — UI Demonstration"
-        maxWidth={500}
+        isOpen={showResultModal}
+        onClose={() => setShowResultModal(false)}
+        title={generationResult?.success ? 'Genetic Algorithm Optimization — Feasible' : 'Scheduling Engine Diagnostics'}
+        maxWidth={620}
         footer={
           <div className="modal-form-actions">
-            <Button variant="secondary" size="sm" onClick={() => setShowDemoModal(false)}>
+            <Button variant="secondary" size="sm" onClick={() => setShowResultModal(false)}>
               Keep Editing Config
             </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => {
-                setShowDemoModal(false);
-                onNavigate('/admin/timetable');
-              }}
-            >
-              Inspect Existing Timetable Draft →
-            </Button>
+            {generationResult?.success && (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => {
+                  setShowResultModal(false);
+                  onNavigate('/admin/timetable');
+                }}
+              >
+                Inspect Saved Timetable Draft →
+              </Button>
+            )}
           </div>
         }
       >
         <div className="demo-engine-notice-content">
-          <div className="demo-engine-icon-box">
+          <div className={`demo-engine-icon-box ${generationResult?.success ? 'is-success' : 'is-error'}`}>
             <CpuIcon size={28} />
           </div>
-          <div className="demo-engine-text">
-            <h4 className="demo-engine-title">Configuration Ready for Review</h4>
+          <div className="demo-engine-text" style={{ width: '100%' }}>
+            <h4 className="demo-engine-title">
+              {generationResult?.success
+                ? 'Optimal Feasible Schedule Generated'
+                : 'Scheduling Infeasible with Current Constraints'}
+            </h4>
             <p className="demo-engine-body">
-              The scheduling engine will be connected in a later phase. Your configuration is ready for review.
+              {generationResult?.success
+                ? 'The Genetic Algorithm completed constraint-satisfaction optimization and verified 0 hard conflicts. The draft has been saved to your database.'
+                : generationError || 'The algorithm could not eliminate all hard constraint collisions within the configured search limits.'}
             </p>
-            <div className="demo-engine-bullets">
-              <div className="bullet-row">
-                <CheckCircleIcon size={15} className="bullet-check" />
-                <span>All mandatory constraints passed validation checks</span>
+
+            {/* Metrics Grid */}
+            {generationResult && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, margin: '16px 0' }}>
+                <div style={{ padding: '8px 12px', background: 'var(--bg-surface-2, rgba(255,255,255,0.05))', borderRadius: 8 }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Generations</div>
+                  <strong style={{ fontSize: 16 }}>{generationResult.generationCount || 0}</strong>
+                </div>
+                <div style={{ padding: '8px 12px', background: 'var(--bg-surface-2, rgba(255,255,255,0.05))', borderRadius: 8 }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Runtime</div>
+                  <strong style={{ fontSize: 16 }}>{generationResult.elapsedMs || 0} ms</strong>
+                </div>
+                <div style={{ padding: '8px 12px', background: 'var(--bg-surface-2, rgba(255,255,255,0.05))', borderRadius: 8 }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Hard Collisions</div>
+                  <strong style={{ fontSize: 16, color: generationResult.hardViolationsCount === 0 ? 'var(--color-success, #10b981)' : 'var(--color-danger, #ef4444)' }}>
+                    {generationResult.hardViolationsCount ?? 0}
+                  </strong>
+                </div>
               </div>
-              <div className="bullet-row">
-                <CheckCircleIcon size={15} className="bullet-check" />
-                <span>Parameters compiled into standard scheduling request format</span>
+            )}
+
+            {/* Validation Metrics */}
+            {generationResult?.validationReport?.metrics && (
+              <div className="demo-engine-bullets" style={{ marginTop: 12 }}>
+                <div className="bullet-row">
+                  <CheckCircleIcon size={15} className="bullet-check" />
+                  <span>Total Scheduled: {generationResult.validationReport.metrics.totalExamsScheduled} exams</span>
+                </div>
+                <div className="bullet-row">
+                  <CheckCircleIcon size={15} className="bullet-check" />
+                  <span>Window Used: {generationResult.validationReport.metrics.examinationDaysUsed} examination days</span>
+                </div>
+                <div className="bullet-row">
+                  <CheckCircleIcon size={15} className="bullet-check" />
+                  <span>Venues Assigned: {generationResult.validationReport.metrics.venuesAssigned} examination rooms</span>
+                </div>
+                <div className="bullet-row">
+                  <InfoIcon size={15} className="bullet-info" />
+                  <span>Average Room Utilization: {generationResult.validationReport.metrics.averageRoomUtilizationPercent}%</span>
+                </div>
               </div>
-              <div className="bullet-row">
-                <InfoIcon size={15} className="bullet-info" />
-                <span>No real optimization results or conflict-free schedules have been fabricated</span>
+            )}
+
+            {/* Violations List if Infeasible */}
+            {generationResult?.validationReport?.violations?.length > 0 && (
+              <div style={{ marginTop: 14, padding: 12, background: 'rgba(239, 68, 68, 0.1)', borderRadius: 8, border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: '#f87171', marginBottom: 6 }}>
+                  Detected Bottlenecks ({generationResult.validationReport.violations.length}):
+                </div>
+                <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: 'var(--text-muted)' }}>
+                  {generationResult.validationReport.violations.slice(0, 4).map((v, i) => (
+                    <li key={i}>{v.description}</li>
+                  ))}
+                </ul>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </Modal>

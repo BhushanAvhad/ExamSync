@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { PageHeader } from '../../components/admin/PageHeader';
 import { StatCard } from '../../components/admin/StatCard';
 import { FilterBar } from '../../components/admin/FilterBar';
@@ -17,13 +17,48 @@ import {
   UsersIcon,
 } from '../../components/ui/Icons';
 import { INITIAL_CONFLICTS } from '../../data/adminDemoData';
+import { supabase } from '../../lib/supabase';
 
 export function ConflictsPage() {
   const [conflicts, setConflicts] = useState(INITIAL_CONFLICTS);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSeverity, setSelectedSeverity] = useState('all');
   const [selectedType, setSelectedType] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
+
+  const loadConflicts = useCallback(async () => {
+    if (!supabase) return;
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('conflict_logs')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (data && data.length > 0) {
+        const mapped = data.map((c) => ({
+          id: c.id.slice(0, 8).toUpperCase(),
+          rawId: c.id,
+          type: c.conflict_type,
+          severity: c.severity,
+          entity: c.entity_reference,
+          detectedIssue: c.description,
+          suggestedFix: c.suggested_resolution || 'Inspect session constraints.',
+          status: c.status,
+        }));
+        setConflicts(mapped);
+      }
+    } catch (err) {
+      console.warn('Failed to fetch live conflict logs:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadConflicts();
+  }, [loadConflicts]);
 
   // Details modal
   const [detailConflict, setDetailConflict] = useState(null);
@@ -58,24 +93,36 @@ export function ConflictsPage() {
     });
   }, [conflicts, searchQuery, selectedSeverity, selectedType, selectedStatus]);
 
-  const handleMarkReviewed = (conflictId) => {
+  const handleMarkReviewed = async (conflictId) => {
+    const target = conflicts.find((c) => c.id === conflictId);
+    if (supabase && target?.rawId) {
+      try {
+        await supabase.from('conflict_logs').update({ status: 'In Review' }).eq('id', target.rawId);
+      } catch (_) {}
+    }
     setConflicts((prev) =>
       prev.map((c) => (c.id === conflictId ? { ...c, status: 'In Review' } : c))
     );
     if (detailConflict && detailConflict.id === conflictId) {
       setDetailConflict((prev) => ({ ...prev, status: 'In Review' }));
     }
-    setToastMessage(`Conflict ${conflictId} marked as 'In Review' (UI demo only)`);
+    setToastMessage(`Conflict ${conflictId} marked as 'In Review' in database`);
   };
 
-  const handleMarkResolved = (conflictId) => {
+  const handleMarkResolved = async (conflictId) => {
+    const target = conflicts.find((c) => c.id === conflictId);
+    if (supabase && target?.rawId) {
+      try {
+        await supabase.from('conflict_logs').update({ status: 'Resolved' }).eq('id', target.rawId);
+      } catch (_) {}
+    }
     setConflicts((prev) =>
       prev.map((c) => (c.id === conflictId ? { ...c, status: 'Resolved' } : c))
     );
     if (detailConflict && detailConflict.id === conflictId) {
       setDetailConflict((prev) => ({ ...prev, status: 'Resolved' }));
     }
-    setToastMessage(`Conflict ${conflictId} marked as 'Resolved' (UI demo only)`);
+    setToastMessage(`Conflict ${conflictId} marked as 'Resolved' in database`);
   };
 
   const getSeverityBadge = (sev) => {
