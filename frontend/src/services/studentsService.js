@@ -5,6 +5,40 @@ const STORAGE_KEY = 'examsync_students_roster';
 const ACTIVITIES_KEY = 'examsync_recent_activities';
 
 /**
+ * Generate standardized short roll number / registration identifier
+ * Format: 26FE01, 25CP02, 25IT01, 24EX01, 23CP01
+ */
+export function generateShortRollNo(className = 'FE', existingRoster = [], indexOffset = 0) {
+  const cls = (className || 'FE').toUpperCase();
+  const deptCode = cls.includes('CMPN') ? 'CP' : cls.includes('INFT') ? 'IT' : cls.includes('EXTC') ? 'EX' : cls.includes('BIOM') ? 'BM' : 'FE';
+  const yrCode = cls.startsWith('FE') ? '26' : cls.startsWith('SE') ? '25' : cls.startsWith('TE') ? '24' : '23';
+  const prefix = `${yrCode}${deptCode}`;
+
+  const matching = (existingRoster || []).filter((s) => {
+    const id = s.rollNo || s.id || '';
+    return id.startsWith(prefix);
+  });
+
+  const nextSeq = matching.length + 1 + indexOffset;
+  return `${prefix}${String(nextSeq).padStart(2, '0')}`;
+}
+
+function normalizeRoster(list) {
+  if (!Array.isArray(list)) return [];
+  return list.map((s, idx) => {
+    let roll = s.rollNo || s.id;
+    if (!roll || roll.startsWith('STU-') || roll.length > 8) {
+      roll = generateShortRollNo(s.className || 'FE', list.slice(0, idx), 0);
+    }
+    return {
+      ...s,
+      id: roll,
+      rollNo: roll,
+    };
+  });
+}
+
+/**
  * Helper to get roster from localStorage with fallback to INITIAL_STUDENTS
  */
 function getStoredRoster() {
@@ -13,6 +47,14 @@ function getStoredRoster() {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) {
+        const hasLegacy = parsed.some(
+          (s) => (s.id && s.id.startsWith('STU-')) || (s.rollNo && s.rollNo.startsWith('STU-')) || (s.id && s.id.length > 8)
+        );
+        if (hasLegacy) {
+          const normalized = normalizeRoster(parsed);
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
+          return normalized;
+        }
         return parsed;
       }
     }
@@ -123,8 +165,10 @@ export const studentsService = {
    */
   async addStudent(studentData) {
     const current = getStoredRoster();
+    const roll = studentData.rollNo || studentData.id || generateShortRollNo(studentData.className, current);
     const newStudent = {
-      id: studentData.id || `STU-2026-${String(current.length + 1).padStart(3, '0')}`,
+      id: roll,
+      rollNo: roll,
       name: studentData.name.trim(),
       email: studentData.email.trim().toLowerCase(),
       className: studentData.className || 'FE',
@@ -206,15 +250,19 @@ export const studentsService = {
     if (!studentsList || studentsList.length === 0) return { data: [], error: null };
 
     const current = getStoredRoster();
-    const normalizedNew = studentsList.map((s, idx) => ({
-      id: s.id || `STU-2026-${String(current.length + idx + 1).padStart(3, '0')}`,
-      name: s.name.trim(),
-      email: s.email.trim().toLowerCase(),
-      className: s.className || 'FE',
-      division: s.division || 'A',
-      phone: s.phone || '',
-      status: s.status || 'Active',
-    }));
+    const normalizedNew = studentsList.map((s, idx) => {
+      const roll = s.rollNo || s.id || generateShortRollNo(s.className || 'FE', current, idx);
+      return {
+        id: roll,
+        rollNo: roll,
+        name: s.name.trim(),
+        email: s.email.trim().toLowerCase(),
+        className: s.className || 'FE',
+        division: s.division || 'A',
+        phone: s.phone || '',
+        status: s.status || 'Active',
+      };
+    });
 
     // Merge without duplicates by email
     const emailMap = new Map();

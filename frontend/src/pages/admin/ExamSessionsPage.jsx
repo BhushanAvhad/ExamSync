@@ -20,7 +20,16 @@ import { INITIAL_EXAM_SESSIONS } from '../../data/adminDemoData';
 import { sessionsService } from '../../services/sessionsService';
 
 export function ExamSessionsPage() {
-  const [sessions, setSessions] = useState(INITIAL_EXAM_SESSIONS);
+  const [sessions, setSessions] = useState(() => {
+    try {
+      const raw = localStorage.getItem('examsync_sessions');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return INITIAL_EXAM_SESSIONS;
+  });
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState('cards'); // 'cards' | 'table'
   const [searchQuery, setSearchQuery] = useState('');
@@ -40,6 +49,9 @@ export function ExamSessionsPage() {
 
   useEffect(() => {
     loadSessions();
+    const handleUpdate = () => loadSessions();
+    window.addEventListener('examsync_sessions_updated', handleUpdate);
+    return () => window.removeEventListener('examsync_sessions_updated', handleUpdate);
   }, [loadSessions]);
 
   // Modal states

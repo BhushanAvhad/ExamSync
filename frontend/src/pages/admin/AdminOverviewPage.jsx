@@ -26,8 +26,26 @@ import { sessionsService } from '../../services/sessionsService';
 import { timetablesService } from '../../services/timetablesService';
 
 export function AdminOverviewPage({ onNavigate }) {
-  const [sessions, setSessions] = useState(INITIAL_EXAM_SESSIONS);
-  const [activeSession, setActiveSession] = useState('SESS-2026-02');
+  const [sessions, setSessions] = useState(() => {
+    try {
+      const raw = localStorage.getItem('examsync_sessions');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return INITIAL_EXAM_SESSIONS;
+  });
+  const [activeSession, setActiveSession] = useState(() => {
+    try {
+      const raw = localStorage.getItem('examsync_sessions');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed[0].id;
+      }
+    } catch (e) {}
+    return 'SESS-2026-02';
+  });
   const [stats, setStats] = useState(INITIAL_SUMMARY_STATS);
   const [activities, setActivities] = useState(RECENT_ACTIVITIES);
 
@@ -43,7 +61,10 @@ export function AdminOverviewPage({ onNavigate }) {
 
       if (sessRes.data && sessRes.data.length > 0) {
         setSessions(sessRes.data);
-        setActiveSession(sessRes.data[0].id);
+        setActiveSession((prev) => {
+          const exists = sessRes.data.some((s) => s.id === prev);
+          return exists ? prev : sessRes.data[0].id;
+        });
       }
 
       const studentList = studRes.data || [];
@@ -97,10 +118,12 @@ export function AdminOverviewPage({ onNavigate }) {
     window.addEventListener('examsync_students_updated', handleUpdate);
     window.addEventListener('examsync_activity_logged', handleUpdate);
     window.addEventListener('examsync_timetable_published', handleUpdate);
+    window.addEventListener('examsync_sessions_updated', handleUpdate);
     return () => {
       window.removeEventListener('examsync_students_updated', handleUpdate);
       window.removeEventListener('examsync_activity_logged', handleUpdate);
       window.removeEventListener('examsync_timetable_published', handleUpdate);
+      window.removeEventListener('examsync_sessions_updated', handleUpdate);
     };
   }, [loadStats]);
 
@@ -206,7 +229,7 @@ export function AdminOverviewPage({ onNavigate }) {
                 onChange={(e) => setActiveSession(e.target.value)}
                 aria-label="Select Examination Session"
               >
-                {INITIAL_EXAM_SESSIONS.map((sess) => (
+                {sessions.map((sess) => (
                   <option key={sess.id} value={sess.id}>
                     {sess.name} ({sess.status})
                   </option>

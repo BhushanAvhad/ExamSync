@@ -27,14 +27,40 @@ import { sessionsService } from '../../services/sessionsService';
 import { exportToCSV } from '../../utils/exportUtils';
 import { OfficialPrintHeader } from '../../components/common/OfficialPrintHeader';
 import { OfficialPrintFooter } from '../../components/common/OfficialPrintFooter';
+import {
+  parseYearAndDept,
+  groupTimetableByYearAndDept,
+  YEAR_FILTER_OPTIONS,
+  getDepartmentFilterOptions,
+} from '../../utils/academicStructure';
 
 export function TimetablePage() {
   const [timetable, setTimetable] = useState(INITIAL_TIMETABLE);
-  const [sessions, setSessions] = useState(INITIAL_EXAM_SESSIONS);
-  const [selectedSessionId, setSelectedSessionId] = useState('SESS-2026-02');
+  const [sessions, setSessions] = useState(() => {
+    try {
+      const raw = localStorage.getItem('examsync_sessions');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return INITIAL_EXAM_SESSIONS;
+  });
+  const [selectedSessionId, setSelectedSessionId] = useState(() => {
+    try {
+      const raw = localStorage.getItem('examsync_sessions');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed[0].id;
+      }
+    } catch (e) {}
+    return 'SESS-2026-02';
+  });
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedClass, setSelectedClass] = useState('all');
+  const [selectedYear, setSelectedYear] = useState('all');
+  const [selectedDepartment, setSelectedDepartment] = useState('all');
+  const [selectedPrintScope, setSelectedPrintScope] = useState('all');
   const [selectedRoom, setSelectedRoom] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [viewMode, setViewMode] = useState('table'); // 'table' | 'grid'
@@ -73,6 +99,9 @@ export function TimetablePage() {
 
   useEffect(() => {
     loadData();
+    const handleSessionsUpdate = () => loadData();
+    window.addEventListener('examsync_sessions_updated', handleSessionsUpdate);
+    return () => window.removeEventListener('examsync_sessions_updated', handleSessionsUpdate);
   }, [loadData]);
 
   // Synchronize published state when session changes
@@ -120,19 +149,26 @@ export function TimetablePage() {
   // Toast feedback
   const [toastMessage, setToastMessage] = useState(null);
 
-  // Filtered timetable entries
+  // Filtered timetable entries (Year-wise and Department-wise, not division-wise)
   const filteredEntries = useMemo(() => {
     return timetable.filter((item) => {
+      const { year, department, departmentLabel } = parseYearAndDept(item.className || '');
       const q = searchQuery.toLowerCase();
       const matchesSearch =
         !q ||
         item.subjectCode.toLowerCase().includes(q) ||
         item.subjectName.toLowerCase().includes(q) ||
-        item.className.toLowerCase().includes(q) ||
-        item.room.toLowerCase().includes(q);
+        (item.className && item.className.toLowerCase().includes(q)) ||
+        (item.room && item.room.toLowerCase().includes(q)) ||
+        year.toLowerCase().includes(q) ||
+        department.toLowerCase().includes(q) ||
+        departmentLabel.toLowerCase().includes(q);
 
-      const matchesClass =
-        selectedClass === 'all' || item.className.includes(selectedClass);
+      const matchesYear =
+        selectedYear === 'all' || year.toUpperCase() === selectedYear.toUpperCase();
+
+      const matchesDept =
+        selectedDepartment === 'all' || department.toUpperCase() === selectedDepartment.toUpperCase();
 
       const matchesRoom =
         selectedRoom === 'all' || item.room.includes(selectedRoom);
@@ -140,14 +176,13 @@ export function TimetablePage() {
       const matchesStatus =
         selectedStatus === 'all' || item.status.toLowerCase() === selectedStatus.toLowerCase();
 
-      return matchesSearch && matchesClass && matchesRoom && matchesStatus;
+      return matchesSearch && matchesYear && matchesDept && matchesRoom && matchesStatus;
     });
-  }, [timetable, searchQuery, selectedClass, selectedRoom, selectedStatus]);
+  }, [timetable, searchQuery, selectedYear, selectedDepartment, selectedRoom, selectedStatus]);
 
-  // Dynamic filter options derived from timetable data
-  const cohortFilterOptions = useMemo(() => {
-    const list = Array.from(new Set(timetable.map((t) => t.className).filter(Boolean))).sort();
-    return [{ label: 'All Cohorts', value: 'all' }, ...list.map((c) => ({ label: c, value: c }))];
+  // Dynamic filter options derived from academic structure
+  const departmentFilterOptions = useMemo(() => {
+    return getDepartmentFilterOptions(timetable);
   }, [timetable]);
 
   const roomFilterOptions = useMemo(() => {
@@ -159,6 +194,18 @@ export function TimetablePage() {
     const set = new Set([...timetable.map((t) => t.room).filter(Boolean), 'A101', 'A201', 'A202', 'A204', 'A301', 'B201', 'C101', 'F101', 'M101', 'L01', 'L02']);
     return Array.from(set).sort();
   }, [timetable]);
+
+  // Grouped entries strictly Year-wise and Department-wise for unmixed printing
+  const groupedPrintEntries = useMemo(() => {
+    let list = filteredEntries;
+    if (selectedPrintScope !== 'all') {
+      list = filteredEntries.filter((item) => {
+        const { year } = parseYearAndDept(item.className || '');
+        return year.toUpperCase() === selectedPrintScope.toUpperCase();
+      });
+    }
+    return groupTimetableByYearAndDept(list);
+  }, [filteredEntries, selectedPrintScope]);
 
   // Handle Edit Modal
   const handleOpenEdit = (entry) => {
@@ -246,12 +293,12 @@ export function TimetablePage() {
       const exportCols = [
         { label: 'Exam Date', key: 'date' },
         { label: 'Time Slot', key: 'timeSlot' },
-        { label: 'Duration', key: 'duration' },
+        { label: 'Academic Year', accessor: (row) => parseYearAndDept(row.className).year },
+        { label: 'Department', accessor: (row) => parseYearAndDept(row.className).department },
         { label: 'Subject Code', key: 'subjectCode' },
         { label: 'Subject Name', key: 'subjectName' },
-        { label: 'Cohort / Class', key: 'className' },
-        { label: 'Division', key: 'division' },
         { label: 'Assigned Venue', key: 'room' },
+        { label: 'Duration', key: 'duration' },
         { label: 'Status', key: 'status' },
       ];
       const currentSess = sessions.find((s) => s.id === selectedSessionId);
@@ -299,12 +346,31 @@ export function TimetablePage() {
       ),
     },
     {
-      key: 'className',
-      label: 'Cohort & Div',
-      width: '140px',
-      render: (val, row) => (
-        <span className="cohort-tag print-nowrap">{val} ({row.division})</span>
-      ),
+      key: 'year',
+      label: 'Academic Year',
+      width: '120px',
+      render: (_, row) => {
+        const { year } = parseYearAndDept(row.className);
+        return (
+          <span className="overview-cycle-pill" style={{ fontWeight: 700, padding: '3px 8px' }}>
+            {year}
+          </span>
+        );
+      },
+    },
+    {
+      key: 'department',
+      label: 'Department',
+      width: '170px',
+      render: (_, row) => {
+        const { department, departmentLabel } = parseYearAndDept(row.className);
+        return (
+          <div>
+            <strong style={{ color: 'var(--text-primary)', fontSize: 13 }}>{department}</strong>
+            <div style={{ color: 'var(--text-secondary)', fontSize: 11 }}>{departmentLabel}</div>
+          </div>
+        );
+      },
     },
     {
       key: 'room',
@@ -433,7 +499,7 @@ export function TimetablePage() {
             value={selectedSessionId}
             onChange={(e) => setSelectedSessionId(e.target.value)}
           >
-            {INITIAL_EXAM_SESSIONS.map((s) => (
+            {sessions.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.name} ({s.term})
               </option>
@@ -466,25 +532,36 @@ export function TimetablePage() {
           setSearchQuery(q);
           setCurrentPage(1);
         }}
-        searchPlaceholder="Filter by subject code, name, cohort, or room..."
+        searchPlaceholder="Filter by course code, name, year, department, or venue..."
         totalResults={filteredEntries.length}
         onClearAll={() => {
           setSearchQuery('');
-          setSelectedClass('all');
+          setSelectedYear('all');
+          setSelectedDepartment('all');
           setSelectedRoom('all');
           setSelectedStatus('all');
           setCurrentPage(1);
         }}
         filters={[
           {
-            id: 'class-filter',
-            value: selectedClass,
+            id: 'year-filter',
+            value: selectedYear,
             onChange: (val) => {
-              setSelectedClass(val);
+              setSelectedYear(val);
               setCurrentPage(1);
             },
-            ariaLabel: 'Filter by Cohort',
-            options: cohortFilterOptions,
+            ariaLabel: 'Filter by Academic Year',
+            options: YEAR_FILTER_OPTIONS,
+          },
+          {
+            id: 'dept-filter',
+            value: selectedDepartment,
+            onChange: (val) => {
+              setSelectedDepartment(val);
+              setCurrentPage(1);
+            },
+            ariaLabel: 'Filter by Department',
+            options: departmentFilterOptions,
           },
           {
             id: 'room-filter',
@@ -565,7 +642,11 @@ export function TimetablePage() {
                           <DoorIcon size={12} />
                           <span>{e.room}</span>
                         </div>
-                        <div className="slot-exam-cohort">{e.className} ({e.division})</div>
+                        <div className="slot-exam-cohort">
+                          <span style={{ fontWeight: 700 }}>{parseYearAndDept(e.className).year}</span>
+                          <span> • </span>
+                          <span>{parseYearAndDept(e.className).department}</span>
+                        </div>
                       </div>
                     ))
                   )}
@@ -576,39 +657,85 @@ export function TimetablePage() {
         </div>
       )}
 
-      {/* Official Printable Master Timetable (Rendered cleanly on print / PDF generation) */}
+      {/* Official Printable Master Timetable (Rendered cleanly Year-wise and Department-wise) */}
       <div className="admin-printable-doc print-only">
         <OfficialPrintHeader
           documentTitle="OFFICIAL MASTER EXAMINATION TIMETABLE"
           sessionTitle={sessions.find((s) => s.id === selectedSessionId)?.name}
         />
 
-        <table className="printable-official-table">
-          <thead>
-            <tr>
-              <th style={{ width: '105px' }}>Date</th>
-              <th style={{ width: '135px' }}>Time Interval</th>
-              <th style={{ width: '90px' }}>Course Code</th>
-              <th>Course / Subject Title</th>
-              <th style={{ width: '120px' }}>Cohort & Div</th>
-              <th style={{ width: '130px' }}>Assigned Venue</th>
-              <th style={{ width: '80px' }}>Duration</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredEntries.map((row) => (
-              <tr key={row.id}>
-                <td className="print-nowrap" style={{ fontWeight: 600 }}>{row.date}</td>
-                <td className="print-nowrap">{row.timeSlot}</td>
-                <td className="mono-id print-nowrap">{row.subjectCode}</td>
-                <td className="subject-tbl-name">{row.subjectName}</td>
-                <td className="print-nowrap">{row.className} ({row.division})</td>
-                <td className="print-nowrap">{row.room}</td>
-                <td className="print-nowrap">{row.duration}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {groupedPrintEntries.map((grp) => (
+          <div
+            key={grp.key}
+            className="printable-cohort-section"
+            style={{ pageBreakInside: 'avoid', breakInside: 'avoid', marginBottom: 28 }}
+          >
+            <div
+              className="printable-cohort-header"
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                borderBottom: '2px solid #0f172a',
+                paddingBottom: '4px',
+                marginBottom: '10px',
+              }}
+            >
+              <div>
+                <span
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 800,
+                    background: '#0f172a',
+                    color: '#ffffff',
+                    padding: '2px 8px',
+                    borderRadius: '3px',
+                    marginRight: '8px',
+                    letterSpacing: '0.5px',
+                  }}
+                >
+                  {grp.year}
+                </span>
+                <strong style={{ fontSize: '13px', textTransform: 'uppercase', color: '#0f172a', letterSpacing: '0.4px' }}>
+                  {grp.title}
+                </strong>
+              </div>
+              <span style={{ fontSize: '11px', color: '#475569', fontWeight: 600 }}>
+                {grp.items.length} Examination Paper{grp.items.length > 1 ? 's' : ''}
+              </span>
+            </div>
+
+            <table className="printable-official-table" style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '16px' }}>
+              <thead>
+                <tr style={{ background: '#f1f5f9' }}>
+                  <th style={{ width: '105px' }}>Date</th>
+                  <th style={{ width: '65px' }}>Day</th>
+                  <th style={{ width: '135px' }}>Time Slot</th>
+                  <th style={{ width: '90px' }}>Course Code</th>
+                  <th>Course / Subject Title</th>
+                  <th style={{ width: '115px' }}>Assigned Venue</th>
+                  <th style={{ width: '80px' }}>Duration</th>
+                </tr>
+              </thead>
+              <tbody>
+                {grp.items.map((row) => {
+                  const dayStr = new Date(row.date).toLocaleDateString('en-US', { weekday: 'short' });
+                  return (
+                    <tr key={row.id}>
+                      <td className="print-nowrap" style={{ fontWeight: 600 }}>{row.date}</td>
+                      <td className="print-nowrap">{dayStr}</td>
+                      <td className="print-nowrap">{row.timeSlot}</td>
+                      <td className="mono-id print-nowrap">{row.subjectCode}</td>
+                      <td className="subject-tbl-name">{row.subjectName}</td>
+                      <td className="print-nowrap">{row.room}</td>
+                      <td className="print-nowrap">{row.duration}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ))}
 
         <OfficialPrintFooter />
       </div>
@@ -718,8 +845,8 @@ export function TimetablePage() {
               <p className="inspect-text">{viewEntry.date} • {viewEntry.timeSlot} ({viewEntry.duration})</p>
             </div>
             <div className="inspect-item">
-              <span className="inspect-label">Assigned Cohort</span>
-              <p className="inspect-text">{viewEntry.className} — Division {viewEntry.division}</p>
+              <span className="inspect-label">Academic Cohort</span>
+              <p className="inspect-text">{parseYearAndDept(viewEntry.className).cohortLabel}</p>
             </div>
             <div className="inspect-item">
               <span className="inspect-label">Venue</span>
@@ -763,35 +890,108 @@ export function TimetablePage() {
           }
         >
           <div className="printable-preview-area" style={{ background: '#ffffff', color: '#0f172a', padding: '20px 24px', borderRadius: '8px' }}>
+            <div className="no-print" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', background: '#f8fafc', padding: '10px 14px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <label htmlFor="preview-scope" style={{ fontSize: '13px', fontWeight: 700, color: '#334155' }}>
+                  Print Scope:
+                </label>
+                <select
+                  id="preview-scope"
+                  className="filter-select inline-select"
+                  value={selectedPrintScope}
+                  onChange={(e) => setSelectedPrintScope(e.target.value)}
+                  style={{ minWidth: '220px' }}
+                >
+                  <option value="all">All Academic Years & Depts (Grouped)</option>
+                  <option value="FE">First Year (FE) Only</option>
+                  <option value="SE">Second Year (SE) Only</option>
+                  <option value="TE">Third Year (TE) Only</option>
+                  <option value="BE">Final Year (BE) Only</option>
+                </select>
+              </div>
+              <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 500 }}>
+                {groupedPrintEntries.length} Departmental Cohort Schedule{groupedPrintEntries.length > 1 ? 's' : ''}
+              </span>
+            </div>
+
             <OfficialPrintHeader
               documentTitle="OFFICIAL MASTER EXAMINATION TIMETABLE"
               sessionTitle={sessions.find((s) => s.id === selectedSessionId)?.name}
             />
 
-            <table className="printable-official-table" style={{ width: '100%', borderCollapse: 'collapse', marginTop: 12, marginBottom: 16 }}>
-              <thead>
-                <tr style={{ background: '#f1f5f9' }}>
-                  <th style={{ padding: '8px 10px', border: '1px solid #1e293b', textAlign: 'left', fontSize: 12 }}>Date</th>
-                  <th style={{ padding: '8px 10px', border: '1px solid #1e293b', textAlign: 'left', fontSize: 12 }}>Time</th>
-                  <th style={{ padding: '8px 10px', border: '1px solid #1e293b', textAlign: 'left', fontSize: 12 }}>Course</th>
-                  <th style={{ padding: '8px 10px', border: '1px solid #1e293b', textAlign: 'left', fontSize: 12 }}>Course Title</th>
-                  <th style={{ padding: '8px 10px', border: '1px solid #1e293b', textAlign: 'left', fontSize: 12 }}>Cohort</th>
-                  <th style={{ padding: '8px 10px', border: '1px solid #1e293b', textAlign: 'left', fontSize: 12 }}>Venue</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredEntries.map((row) => (
-                  <tr key={row.id}>
-                    <td style={{ padding: '7px 10px', border: '1px solid #cbd5e1', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap' }}>{row.date}</td>
-                    <td style={{ padding: '7px 10px', border: '1px solid #cbd5e1', fontSize: 12, whiteSpace: 'nowrap' }}>{row.timeSlot}</td>
-                    <td style={{ padding: '7px 10px', border: '1px solid #cbd5e1', fontSize: 12, fontWeight: 700, fontFamily: 'monospace' }}>{row.subjectCode}</td>
-                    <td style={{ padding: '7px 10px', border: '1px solid #cbd5e1', fontSize: 12 }}>{row.subjectName}</td>
-                    <td style={{ padding: '7px 10px', border: '1px solid #cbd5e1', fontSize: 12, whiteSpace: 'nowrap' }}>{row.className} ({row.division})</td>
-                    <td style={{ padding: '7px 10px', border: '1px solid #cbd5e1', fontSize: 12, whiteSpace: 'nowrap' }}>{row.room}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            {groupedPrintEntries.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '30px 16px', color: '#64748b' }}>
+                No timetable slots match the selected scope.
+              </div>
+            ) : (
+              groupedPrintEntries.map((grp) => (
+                <div key={grp.key} className="printable-cohort-section" style={{ pageBreakInside: 'avoid', breakInside: 'avoid', marginBottom: '24px' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      borderBottom: '2px solid #0f172a',
+                      paddingBottom: '4px',
+                      marginBottom: '10px',
+                    }}
+                  >
+                    <div>
+                      <span
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: 800,
+                          background: '#0f172a',
+                          color: '#ffffff',
+                          padding: '2px 8px',
+                          borderRadius: '3px',
+                          marginRight: '8px',
+                          letterSpacing: '0.5px',
+                        }}
+                      >
+                        {grp.year}
+                      </span>
+                      <strong style={{ fontSize: '13px', textTransform: 'uppercase', color: '#0f172a', letterSpacing: '0.4px' }}>
+                        {grp.title}
+                      </strong>
+                    </div>
+                    <span style={{ fontSize: '11px', color: '#475569', fontWeight: 600 }}>
+                      {grp.items.length} Examination Paper{grp.items.length > 1 ? 's' : ''}
+                    </span>
+                  </div>
+
+                  <table className="printable-official-table" style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '14px' }}>
+                    <thead>
+                      <tr style={{ background: '#f1f5f9' }}>
+                        <th style={{ padding: '7px 10px', border: '1px solid #1e293b', textAlign: 'left', fontSize: 11, width: '105px' }}>Date</th>
+                        <th style={{ padding: '7px 10px', border: '1px solid #1e293b', textAlign: 'left', fontSize: 11, width: '65px' }}>Day</th>
+                        <th style={{ padding: '7px 10px', border: '1px solid #1e293b', textAlign: 'left', fontSize: 11, width: '135px' }}>Time</th>
+                        <th style={{ padding: '7px 10px', border: '1px solid #1e293b', textAlign: 'left', fontSize: 11, width: '90px' }}>Course</th>
+                        <th style={{ padding: '7px 10px', border: '1px solid #1e293b', textAlign: 'left', fontSize: 11 }}>Course Title</th>
+                        <th style={{ padding: '7px 10px', border: '1px solid #1e293b', textAlign: 'left', fontSize: 11, width: '110px' }}>Venue</th>
+                        <th style={{ padding: '7px 10px', border: '1px solid #1e293b', textAlign: 'left', fontSize: 11, width: '80px' }}>Duration</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {grp.items.map((row) => {
+                        const dayStr = new Date(row.date).toLocaleDateString('en-US', { weekday: 'short' });
+                        return (
+                          <tr key={row.id}>
+                            <td style={{ padding: '7px 10px', border: '1px solid #cbd5e1', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' }}>{row.date}</td>
+                            <td style={{ padding: '7px 10px', border: '1px solid #cbd5e1', fontSize: 11, whiteSpace: 'nowrap' }}>{dayStr}</td>
+                            <td style={{ padding: '7px 10px', border: '1px solid #cbd5e1', fontSize: 11, whiteSpace: 'nowrap' }}>{row.timeSlot}</td>
+                            <td style={{ padding: '7px 10px', border: '1px solid #cbd5e1', fontSize: 11, fontWeight: 700, fontFamily: 'monospace' }}>{row.subjectCode}</td>
+                            <td style={{ padding: '7px 10px', border: '1px solid #cbd5e1', fontSize: 11 }}>{row.subjectName}</td>
+                            <td style={{ padding: '7px 10px', border: '1px solid #cbd5e1', fontSize: 11, whiteSpace: 'nowrap' }}>{row.room}</td>
+                            <td style={{ padding: '7px 10px', border: '1px solid #cbd5e1', fontSize: 11, whiteSpace: 'nowrap' }}>{row.duration}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ))
+            )}
 
             <OfficialPrintFooter />
           </div>

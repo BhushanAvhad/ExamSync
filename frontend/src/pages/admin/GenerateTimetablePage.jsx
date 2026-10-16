@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { PageHeader } from '../../components/admin/PageHeader';
 import { Modal } from '../../components/admin/Modal';
 import { Button } from '../../components/ui/Button';
@@ -20,6 +20,7 @@ import {
   INITIAL_SUBJECTS,
   INITIAL_CLASSES,
   INITIAL_ROOMS,
+  INITIAL_ASSIGNMENTS,
 } from '../../data/adminDemoData';
 import { sessionsService } from '../../services/sessionsService';
 import { academicsService } from '../../services/academicsService';
@@ -28,11 +29,64 @@ import { generatorService } from '../../services/generatorService';
 
 export function GenerateTimetablePage({ onNavigate }) {
   const [currentStep, setCurrentStep] = useState(1);
-  const [sessions, setSessions] = useState(INITIAL_EXAM_SESSIONS);
-  const [selectedSessionId, setSelectedSessionId] = useState('SESS-2026-02');
-  const [subjects, setSubjects] = useState(INITIAL_SUBJECTS);
-  const [classes, setClasses] = useState(INITIAL_CLASSES);
-  const [rooms, setRooms] = useState(INITIAL_ROOMS);
+  const [sessions, setSessions] = useState(() => {
+    try {
+      const raw = localStorage.getItem('examsync_sessions');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return INITIAL_EXAM_SESSIONS;
+  });
+  const [selectedSessionId, setSelectedSessionId] = useState(() => {
+    try {
+      const raw = localStorage.getItem('examsync_sessions');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed[0].id;
+      }
+    } catch (e) {}
+    return 'SESS-2026-02';
+  });
+  const [subjects, setSubjects] = useState(() => {
+    try {
+      const raw = localStorage.getItem('examsync_subjects');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return INITIAL_SUBJECTS;
+  });
+  const [classes, setClasses] = useState(() => {
+    try {
+      const raw = localStorage.getItem('examsync_classes');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return INITIAL_CLASSES;
+  });
+  const [rooms, setRooms] = useState(() => {
+    try {
+      const raw = localStorage.getItem('examsync_rooms');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return INITIAL_ROOMS;
+  });
+
+  // Step 2: Curriculum & Labs Selection
+  const [selectedSubjectCodes, setSelectedSubjectCodes] = useState(() => {
+    return new Set(INITIAL_SUBJECTS.map((s) => s.code));
+  });
+  const [curriculumTypeFilter, setCurriculumTypeFilter] = useState('all'); // 'all' | 'theory' | 'lab'
+  const [curriculumYearFilter, setCurriculumYearFilter] = useState('all'); // 'all' | 'FE' | 'SE' | 'TE' | 'BE'
+  const [curriculumSearch, setCurriculumSearch] = useState('');
 
   // Generation execution state
   const [isGenerating, setIsGenerating] = useState(false);
@@ -40,7 +94,7 @@ export function GenerateTimetablePage({ onNavigate }) {
   const [generationError, setGenerationError] = useState(null);
   const [showResultModal, setShowResultModal] = useState(false);
 
-  // Load live data from Supabase
+  // Load live data from Supabase & localStorage
   useEffect(() => {
     async function loadData() {
       try {
@@ -52,7 +106,10 @@ export function GenerateTimetablePage({ onNavigate }) {
         ]);
         if (sessRes.data && sessRes.data.length > 0) {
           setSessions(sessRes.data);
-          setSelectedSessionId(sessRes.data[0].id);
+          setSelectedSessionId((prev) => {
+            const exists = sessRes.data.some((s) => s.id === prev);
+            return exists ? prev : sessRes.data[0].id;
+          });
         }
         if (subRes.data) setSubjects(subRes.data);
         if (clsRes.data) setClasses(clsRes.data);
@@ -62,6 +119,10 @@ export function GenerateTimetablePage({ onNavigate }) {
       }
     }
     loadData();
+
+    const handleSessionsUpdate = () => loadData();
+    window.addEventListener('examsync_sessions_updated', handleSessionsUpdate);
+    return () => window.removeEventListener('examsync_sessions_updated', handleSessionsUpdate);
   }, []);
 
   // Step 3 Constraints state
@@ -92,11 +153,98 @@ export function GenerateTimetablePage({ onNavigate }) {
 
   const steps = [
     { number: 1, label: 'Select Session' },
-    { number: 2, label: 'Review Inputs' },
+    { number: 2, label: 'Curriculum & Labs' },
     { number: 3, label: 'Configure Constraints' },
     { number: 4, label: 'Algorithm Settings' },
     { number: 5, label: 'Preview & Run' },
   ];
+
+  const handleToggleSubject = (code) => {
+    setSelectedSubjectCodes((prev) => {
+      const next = new Set(prev);
+      if (next.has(code)) {
+        next.delete(code);
+      } else {
+        next.add(code);
+      }
+      return next;
+    });
+  };
+
+  const handleSelectCurriculumPreset = (preset) => {
+    setSelectedSubjectCodes((prev) => {
+      const next = new Set(prev);
+      if (preset === 'all') {
+        subjects.forEach((s) => next.add(s.code));
+      } else if (preset === 'theory') {
+        subjects.forEach((s) => {
+          const isLab = s.type === 'Lab' || /-L\d+/i.test(s.code);
+          if (!isLab) next.add(s.code);
+          else next.delete(s.code);
+        });
+      } else if (preset === 'lab') {
+        subjects.forEach((s) => {
+          const isLab = s.type === 'Lab' || /-L\d+/i.test(s.code);
+          if (isLab) next.add(s.code);
+          else next.delete(s.code);
+        });
+      } else if (preset === 'clear') {
+        next.clear();
+      }
+      return next;
+    });
+  };
+
+  const filteredCurriculum = useMemo(() => {
+    return subjects.filter((s) => {
+      const isLab = s.type === 'Lab' || /-L\d+/i.test(s.code);
+      if (curriculumTypeFilter === 'theory' && isLab) return false;
+      if (curriculumTypeFilter === 'lab' && !isLab) return false;
+
+      if (curriculumYearFilter !== 'all' && s.year !== curriculumYearFilter) {
+        const matchesCode = (s.code || '').includes(`-${curriculumYearFilter}-`);
+        const matchesClass = (s.applicableClasses || []).some((c) => c.startsWith(curriculumYearFilter));
+        if (!matchesCode && !matchesClass) return false;
+      }
+
+      if (curriculumSearch) {
+        const q = curriculumSearch.toLowerCase().trim();
+        const codeMatch = (s.code || '').toLowerCase().includes(q);
+        const nameMatch = (s.name || '').toLowerCase().includes(q);
+        const deptMatch = (s.department || '').toLowerCase().includes(q);
+        if (!codeMatch && !nameMatch && !deptMatch) return false;
+      }
+
+      return true;
+    });
+  }, [subjects, curriculumTypeFilter, curriculumYearFilter, curriculumSearch]);
+
+  const curriculumStats = useMemo(() => {
+    let theoryCount = 0;
+    let labCount = 0;
+    const yearCounts = { FE: 0, SE: 0, TE: 0, BE: 0 };
+
+    subjects.forEach((s) => {
+      if (selectedSubjectCodes.has(s.code)) {
+        const isLab = s.type === 'Lab' || /-L\d+/i.test(s.code);
+        if (isLab) labCount++;
+        else theoryCount++;
+
+        const yr = s.year || (s.code.includes('-FE-') ? 'FE' : s.code.includes('-CMPN-4-') || s.code.includes('-IT-4-') || s.code.includes('-EXTC-4-') ? 'SE' : s.code.includes('-CMPN-6-') || s.code.includes('-IT-6-') || s.code.includes('-EXTC-6-') ? 'TE' : s.code.includes('-8-') ? 'BE' : null);
+        if (yr && yearCounts[yr] !== undefined) {
+          yearCounts[yr]++;
+        }
+      }
+    });
+
+    return {
+      totalSelected: selectedSubjectCodes.size,
+      totalAvailable: subjects.length,
+      theoryCount,
+      labCount,
+      yearCounts,
+    };
+  }, [subjects, selectedSubjectCodes]);
 
   const handleMandatoryToggle = (key) => {
     setMandatoryConstraints((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -112,6 +260,13 @@ export function GenerateTimetablePage({ onNavigate }) {
       setGenerationError(null);
       setGenerationResult(null);
 
+      // Prepare active selected subjects & assignments based on user's curriculum selection
+      const activeSubjects = subjects.filter((s) => selectedSubjectCodes.has(s.code));
+      const activeAssignments = INITIAL_ASSIGNMENTS.map((a) => ({
+        ...a,
+        subjectCodes: (a.subjectCodes || []).filter((c) => selectedSubjectCodes.has(c)),
+      })).filter((a) => a.subjectCodes.length > 0);
+
       const maxGens = settings.algorithmMode.includes('Fast') ? 80 : 140;
       const response = await generatorService.generate({
         sessionId: selectedSessionId,
@@ -121,25 +276,40 @@ export function GenerateTimetablePage({ onNavigate }) {
           mutationRate: 0.18,
         },
         saveAsDraft: true,
+        institutionalData: {
+          subjects: activeSubjects,
+          assignments: activeAssignments,
+          rooms,
+          sessions,
+        },
       });
 
       if (response.ok && response.data.success) {
         setGenerationResult(response.data);
 
         if (Array.isArray(response.data.timetable) && response.data.timetable.length > 0) {
-          const mapped = response.data.timetable.map((t, idx) => ({
-            id: t.eventId || `TT-GEN-${idx + 1}`,
-            date: t.date,
-            timeSlot: `${t.startTime} — ${t.endTime}`,
-            subjectCode: t.subjectCode || '—',
-            subjectName: t.subjectName || '—',
-            className: t.className || 'All',
-            division: t.division || 'A',
-            room: t.roomNumber || 'TBD',
-            duration: t.durationMinutes ? `${(t.durationMinutes / 60).toFixed(1)} Hours` : '3.0 Hours',
-            status: 'Scheduled',
-            isPublished: true,
-          }));
+          const mapped = response.data.timetable.map((t, idx) => {
+            const cleanClass = (t.className || 'FE').replace(/\s*\([A-Z0-9&\s,–-]+\)/i, '').trim();
+            const yearMatch = cleanClass.match(/^(FE|SE|TE|BE)\b/i);
+            const year = yearMatch ? yearMatch[1].toUpperCase() : 'General';
+            const deptPart = cleanClass.replace(/^(FE|SE|TE|BE)\b/i, '').trim();
+            const department = deptPart || (year === 'FE' ? 'Applied Sciences' : 'General');
+
+            return {
+              id: t.eventId || `TT-GEN-${idx + 1}`,
+              date: t.date,
+              timeSlot: `${t.startTime} — ${t.endTime}`,
+              subjectCode: t.subjectCode || '—',
+              subjectName: t.subjectName || '—',
+              year,
+              department,
+              className: cleanClass,
+              room: t.roomNumber || 'TBD',
+              duration: t.durationMinutes ? `${(t.durationMinutes / 60).toFixed(1)} Hours` : '3.0 Hours',
+              status: 'Scheduled',
+              isPublished: true,
+            };
+          });
 
           const sessionKey = selectedSessionId || 'default';
           try {
@@ -231,111 +401,280 @@ export function GenerateTimetablePage({ onNavigate }) {
             </div>
 
             <div className="session-selection-list">
-              {INITIAL_EXAM_SESSIONS.map((sess) => {
-                const isSelected = selectedSessionId === sess.id;
-                return (
-                  <div
-                    key={sess.id}
-                    className={`session-select-card ${isSelected ? 'is-selected' : ''}`}
-                    onClick={() => setSelectedSessionId(sess.id)}
-                    role="button"
-                    tabIndex={0}
-                  >
-                    <div className="select-card-radio">
-                      <div className={`radio-dot ${isSelected ? 'checked' : ''}`} />
-                    </div>
-                    <div className="select-card-info">
-                      <div className="select-card-header">
-                        <strong className="select-card-title">{sess.name}</strong>
-                        <Badge
-                          variant={
-                            sess.status === 'Completed'
-                              ? 'available'
-                              : sess.status === 'Scheduled'
-                              ? 'scheduled'
-                              : 'pending'
-                          }
-                        >
-                          {sess.status}
-                        </Badge>
+              {sessions.length === 0 ? (
+                <div style={{ padding: '2rem 1rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                  <p>No exam sessions found. Create a session in the Exam Sessions page first.</p>
+                  {onNavigate && (
+                    <Button variant="outline" style={{ marginTop: '0.75rem' }} onClick={() => onNavigate('sessions')}>
+                      Go to Exam Sessions
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                sessions.map((sess) => {
+                  const isSelected = selectedSessionId === sess.id;
+                  return (
+                    <div
+                      key={sess.id}
+                      className={`session-select-card ${isSelected ? 'is-selected' : ''}`}
+                      onClick={() => setSelectedSessionId(sess.id)}
+                      role="button"
+                      tabIndex={0}
+                    >
+                      <div className="select-card-radio">
+                        <div className={`radio-dot ${isSelected ? 'checked' : ''}`} />
                       </div>
-                      <div className="select-card-meta">
-                        <span>Term: {sess.term}</span>
-                        <span>•</span>
-                        <span>
-                          {sess.startDate} to {sess.endDate}
-                        </span>
-                        <span>•</span>
-                        <span>{(sess.timeSlots || []).length} Time Slots</span>
+                      <div className="select-card-info">
+                        <div className="select-card-header">
+                          <strong className="select-card-title">{sess.name}</strong>
+                          <Badge
+                            variant={
+                              sess.status === 'Completed'
+                                ? 'available'
+                                : sess.status === 'Scheduled'
+                                ? 'scheduled'
+                                : 'pending'
+                            }
+                          >
+                            {sess.status}
+                          </Badge>
+                        </div>
+                        <div className="select-card-meta">
+                          <span>Term: {sess.term}</span>
+                          <span>•</span>
+                          <span>
+                            {sess.startDate} to {sess.endDate}
+                          </span>
+                          <span>•</span>
+                          <span>{(sess.timeSlots || []).length} Time Slots</span>
+                        </div>
+                        {sess.description && <p className="select-card-desc">{sess.description}</p>}
                       </div>
-                      <p className="select-card-desc">{sess.description}</p>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
           </div>
         )}
 
-        {/* ================= STEP 2: REVIEW INPUTS ================= */}
+        {/* ================= STEP 2: CURRICULUM & LABS ================= */}
         {currentStep === 2 && (
           <div className="stepper-pane">
             <div className="pane-header">
-              <h3 className="pane-title">Step 2: Review Scheduling Inputs</h3>
+              <h3 className="pane-title">Step 2: Select Examination Subjects & Practical Labs</h3>
               <p className="pane-subtitle">
-                Verify curriculum cohorts, candidate subjects, and available venues prior to constraint resolution.
+                Select courses and laboratory practicals to schedule for each academic year based on the VIT Wadala catalogue.
               </p>
             </div>
 
-            <div className="inputs-summary-grid">
-              <div className="input-summary-box">
-                <div className="box-top">
-                  <BookOpenIcon size={18} className="box-icon cyan" />
-                  <h4>Candidate Examination Subjects ({INITIAL_SUBJECTS.length})</h4>
+            <div className="curriculum-selector-container">
+              {/* Stat & Presets Banner */}
+              <div className="curriculum-stat-banner">
+                <div className="curriculum-stat-pills">
+                  <span className="curriculum-stat-pill active">
+                    <strong>{curriculumStats.totalSelected} / {curriculumStats.totalAvailable}</strong> Exams Selected
+                  </span>
+                  <span className="curriculum-stat-pill">
+                    📘 {curriculumStats.theoryCount} Theory
+                  </span>
+                  <span className="curriculum-stat-pill">
+                    🔬 {curriculumStats.labCount} Labs
+                  </span>
+                  <span className="curriculum-stat-pill">
+                    FE: {curriculumStats.yearCounts.FE}
+                  </span>
+                  <span className="curriculum-stat-pill">
+                    SE: {curriculumStats.yearCounts.SE}
+                  </span>
+                  <span className="curriculum-stat-pill">
+                    TE: {curriculumStats.yearCounts.TE}
+                  </span>
+                  <span className="curriculum-stat-pill">
+                    BE: {curriculumStats.yearCounts.BE}
+                  </span>
                 </div>
-                <ul className="box-list">
-                  {INITIAL_SUBJECTS.slice(0, 5).map((sub) => (
-                    <li key={sub.id} className="box-list-item">
-                      <span className="mono-code">{sub.code}</span>
-                      <span className="sub-title">{sub.name}</span>
-                      <span className="sub-dur">{sub.duration}</span>
-                    </li>
-                  ))}
-                  <li className="box-list-more">+ {INITIAL_SUBJECTS.length - 5} additional subjects</li>
-                </ul>
+
+                <div className="curriculum-preset-actions">
+                  <button
+                    type="button"
+                    className="curriculum-preset-btn"
+                    onClick={() => handleSelectCurriculumPreset('all')}
+                  >
+                    Select All
+                  </button>
+                  <button
+                    type="button"
+                    className="curriculum-preset-btn"
+                    onClick={() => handleSelectCurriculumPreset('theory')}
+                  >
+                    Theory Only
+                  </button>
+                  <button
+                    type="button"
+                    className="curriculum-preset-btn"
+                    onClick={() => handleSelectCurriculumPreset('lab')}
+                  >
+                    Labs Only
+                  </button>
+                  <button
+                    type="button"
+                    className="curriculum-preset-btn"
+                    onClick={() => handleSelectCurriculumPreset('clear')}
+                  >
+                    Clear All
+                  </button>
+                </div>
               </div>
 
-              <div className="input-summary-box">
-                <div className="box-top">
-                  <UsersIcon size={18} className="box-icon indigo" />
-                  <h4>Examinee Cohorts ({INITIAL_CLASSES.length})</h4>
-                </div>
-                <ul className="box-list">
-                  {INITIAL_CLASSES.slice(0, 5).map((cls) => (
-                    <li key={cls.id} className="box-list-item">
-                      <strong className="cls-name">{cls.name} (Div {cls.division})</strong>
-                      <span className="cls-count">{cls.studentCount} Examinees</span>
-                    </li>
+              {/* Filters Toolbar */}
+              <div className="curriculum-filter-toolbar">
+                <div className="curriculum-filter-group">
+                  <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Type:</span>
+                  {['all', 'theory', 'lab'].map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      className={`curriculum-pill-btn ${curriculumTypeFilter === t ? 'is-active' : ''}`}
+                      onClick={() => setCurriculumTypeFilter(t)}
+                    >
+                      {t === 'all' ? 'All Types' : t === 'theory' ? 'Theory Only' : 'Labs Only'}
+                    </button>
                   ))}
-                  <li className="box-list-more">+ {INITIAL_CLASSES.length - 5} additional cohorts</li>
-                </ul>
+                </div>
+
+                <div className="curriculum-filter-group">
+                  <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Year:</span>
+                  {['all', 'FE', 'SE', 'TE', 'BE'].map((yr) => (
+                    <button
+                      key={yr}
+                      type="button"
+                      className={`curriculum-pill-btn ${curriculumYearFilter === yr ? 'is-active' : ''}`}
+                      onClick={() => setCurriculumYearFilter(yr)}
+                    >
+                      {yr === 'all' ? 'All Years' : yr}
+                    </button>
+                  ))}
+                </div>
+
+                <input
+                  type="text"
+                  className="curriculum-search-input"
+                  placeholder="Filter subjects or code..."
+                  value={curriculumSearch}
+                  onChange={(e) => setCurriculumSearch(e.target.value)}
+                />
               </div>
 
-              <div className="input-summary-box">
-                <div className="box-top">
-                  <DoorIcon size={18} className="box-icon violet" />
-                  <h4>Available Exam Venues ({INITIAL_ROOMS.length})</h4>
+              {/* Curriculum Selection Table */}
+              <div className="curriculum-table-wrapper">
+                <table className="curriculum-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: '40px', textAlign: 'center' }}>
+                        <input
+                          type="checkbox"
+                          checked={
+                            filteredCurriculum.length > 0 &&
+                            filteredCurriculum.every((s) => selectedSubjectCodes.has(s.code))
+                          }
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+                            setSelectedSubjectCodes((prev) => {
+                              const next = new Set(prev);
+                              filteredCurriculum.forEach((s) => {
+                                if (checked) next.add(s.code);
+                                else next.delete(s.code);
+                              });
+                              return next;
+                            });
+                          }}
+                        />
+                      </th>
+                      <th style={{ width: '160px' }}>Course Code</th>
+                      <th>Course / Subject Title</th>
+                      <th style={{ width: '120px' }}>Type</th>
+                      <th style={{ width: '150px' }}>Cohort / Dept</th>
+                      <th style={{ width: '100px' }}>Duration</th>
+                      <th style={{ width: '160px' }}>Target Venue</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredCurriculum.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>
+                          No subjects match the selected filters.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredCurriculum.map((sub) => {
+                        const isSelected = selectedSubjectCodes.has(sub.code);
+                        const isLab = sub.type === 'Lab' || /-L\d+/i.test(sub.code);
+                        return (
+                          <tr
+                            key={sub.id || sub.code}
+                            className={isSelected ? 'is-selected' : ''}
+                            onClick={() => handleToggleSubject(sub.code)}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => handleToggleSubject(sub.code)}
+                              />
+                            </td>
+                            <td>
+                              <span className="mono-code">{sub.code}</span>
+                            </td>
+                            <td>
+                              <strong>{sub.name}</strong>
+                            </td>
+                            <td>
+                              <span className={`curriculum-type-tag ${isLab ? 'lab' : 'theory'}`}>
+                                {isLab ? 'Lab / Practical' : 'Theory / Course'}
+                              </span>
+                            </td>
+                            <td>
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                                {sub.year || 'FE'} • {sub.department || 'Applied Sciences'}
+                              </span>
+                            </td>
+                            <td>{sub.duration || (isLab ? '2.0 Hours' : '3.0 Hours')}</td>
+                            <td>
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                {isLab ? 'Computing / Hardware Lab' : 'Lecture Hall / Classroom'}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Cohorts & Venues Context Footnote */}
+              <div className="curriculum-summary-foot">
+                <div className="input-summary-box">
+                  <div className="box-top">
+                    <UsersIcon size={16} className="box-icon indigo" />
+                    <h4>Academic Cohorts ({classes.length} Enrolled)</h4>
+                  </div>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0 }}>
+                    Examinees will be automatically scheduled across active department cohorts (FE, SE, TE, BE).
+                  </p>
                 </div>
-                <ul className="box-list">
-                  {INITIAL_ROOMS.slice(0, 5).map((rm) => (
-                    <li key={rm.id} className="box-list-item">
-                      <strong className="rm-name">{rm.roomNumber}</strong>
-                      <span className="rm-type">{rm.type}</span>
-                      <span className="rm-cap">{rm.capacity} Desks</span>
-                    </li>
-                  ))}
-                  <li className="box-list-more">+ {INITIAL_ROOMS.length - 5} additional rooms</li>
-                </ul>
+
+                <div className="input-summary-box">
+                  <div className="box-top">
+                    <DoorIcon size={16} className="box-icon violet" />
+                    <h4>Available Venues ({rooms.length} Exam Venues)</h4>
+                  </div>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0 }}>
+                    Theory papers mapped to Lecture Halls & Classrooms; Practicals mapped to Computing & Electronics Labs.
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -544,7 +883,7 @@ export function GenerateTimetablePage({ onNavigate }) {
               </div>
               <div className="preview-row">
                 <span className="p-label">Input Scope</span>
-                <span className="p-value">{INITIAL_SUBJECTS.length} Subjects • {INITIAL_CLASSES.length} Cohorts • {INITIAL_ROOMS.length} Venues</span>
+                <span className="p-value">{subjects.length} Subjects • {classes.length} Cohorts • {rooms.length} Venues</span>
               </div>
               <div className="preview-row">
                 <span className="p-label">Mandatory Constraints</span>

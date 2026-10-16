@@ -6,7 +6,7 @@ export const generatorService = {
   /**
    * Triggers real Genetic Algorithm timetable generation on the Express backend.
    */
-  async generate({ sessionId, settings = {}, saveAsDraft = true }) {
+  async generate({ sessionId, settings = {}, saveAsDraft = true, institutionalData = null }) {
     let token = '';
     if (supabase) {
       const { data: { session } } = await supabase.auth.getSession();
@@ -22,8 +22,8 @@ export const generatorService = {
     }
 
     // Extract created institutional data from local storage if not provided
-    let institutionalData = settings.institutionalData;
-    if (!institutionalData && typeof window !== 'undefined') {
+    let dataPayload = institutionalData || settings.institutionalData;
+    if (!dataPayload && typeof window !== 'undefined') {
       try {
         const rawClasses = localStorage.getItem('examsync_classes');
         const rawSubjects = localStorage.getItem('examsync_subjects');
@@ -31,7 +31,7 @@ export const generatorService = {
         const rawRooms = localStorage.getItem('examsync_rooms');
         const rawSessions = localStorage.getItem('examsync_sessions');
 
-        institutionalData = {
+        dataPayload = {
           classes: rawClasses ? JSON.parse(rawClasses) : undefined,
           subjects: rawSubjects ? JSON.parse(rawSubjects) : undefined,
           assignments: rawAssignments ? JSON.parse(rawAssignments) : undefined,
@@ -50,7 +50,7 @@ export const generatorService = {
         sessionId,
         settings,
         saveAsDraft,
-        institutionalData,
+        institutionalData: dataPayload,
       }),
     });
 

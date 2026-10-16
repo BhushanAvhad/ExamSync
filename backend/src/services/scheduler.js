@@ -324,9 +324,17 @@ class GeneticTimetableScheduler {
       const ev = events[i];
       const slotIndex = Math.floor(this.rng() * slots.length);
 
-      // Prioritize picking a room that fits this event's capacity
+      // Prioritize picking a room that fits this event's capacity and venue type (Lab vs Theory)
+      const isLab = ev.isLab || /Lab|Practical|Viva/i.test(ev.type || '') || /-L\d+/i.test(ev.subjectCode || '');
       const fittingRooms = availableRooms.filter((r) => r.capacity >= ev.studentCount);
-      const roomPool = fittingRooms.length > 0 ? fittingRooms : availableRooms;
+      let roomPool = fittingRooms.length > 0 ? fittingRooms : availableRooms;
+      if (isLab) {
+        const labRooms = roomPool.filter((r) => /Lab/i.test(r.type || '') || /^L/i.test(r.roomNumber || ''));
+        if (labRooms.length > 0) roomPool = labRooms;
+      } else {
+        const lectureRooms = roomPool.filter((r) => !/Lab/i.test(r.type || '') && !/^L/i.test(r.roomNumber || ''));
+        if (lectureRooms.length > 0) roomPool = lectureRooms;
+      }
       const chosenRoom = roomPool[Math.floor(this.rng() * roomPool.length)];
 
       const roomIndex = rooms.findIndex((r) => r.id === chosenRoom.id);
@@ -501,8 +509,16 @@ class GeneticTimetableScheduler {
         if (this.rng() < 0.5) {
           genes[i].slotIndex = Math.floor(this.rng() * slots.length);
         } else {
+          const isLab = ev.isLab || /Lab|Practical|Viva/i.test(ev.type || '') || /-L\d+/i.test(ev.subjectCode || '');
           const fitting = availableRooms.filter((r) => r.capacity >= ev.studentCount);
-          const pool = fitting.length > 0 ? fitting : availableRooms;
+          let pool = fitting.length > 0 ? fitting : availableRooms;
+          if (isLab) {
+            const labRooms = pool.filter((r) => /Lab/i.test(r.type || '') || /^L/i.test(r.roomNumber || ''));
+            if (labRooms.length > 0) pool = labRooms;
+          } else {
+            const lectureRooms = pool.filter((r) => !/Lab/i.test(r.type || '') && !/^L/i.test(r.roomNumber || ''));
+            if (lectureRooms.length > 0) pool = lectureRooms;
+          }
           const chosen = pool[Math.floor(this.rng() * pool.length)];
           const rIdx = rooms.findIndex((r) => r.id === chosen.id);
           genes[i].roomIndex = rIdx >= 0 ? rIdx : 0;
@@ -520,6 +536,11 @@ class GeneticTimetableScheduler {
       const sl = slots[g.slotIndex];
       const rm = rooms[g.roomIndex];
 
+      const yearMatch = (ev.className || '').match(/^(FE|SE|TE|BE)\b/i);
+      const year = yearMatch ? yearMatch[1].toUpperCase() : 'General';
+      const deptPart = (ev.className || '').replace(/^(FE|SE|TE|BE)\b/i, '').trim();
+      const department = deptPart || (year === 'FE' ? 'Applied Sciences' : 'General');
+
       return {
         eventId: ev.id,
         subjectId: ev.subjectId,
@@ -527,7 +548,8 @@ class GeneticTimetableScheduler {
         subjectName: ev.subjectName,
         classId: ev.classId,
         className: ev.className,
-        division: ev.division,
+        year,
+        department,
         roomId: rm ? rm.id : 'unknown',
         roomNumber: rm ? rm.roomNumber : 'TBD',
         roomCapacity: rm ? rm.capacity : 0,

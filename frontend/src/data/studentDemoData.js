@@ -8,7 +8,8 @@
  */
 
 export const STUDENT_PROFILE = {
-  id: 'STU-2026-001',
+  id: '24CP01',
+  rollNo: '24CP01',
   name: 'Aarav Sharma',
   initials: 'AS',
   email: 'aarav.sharma@vit.edu.in',

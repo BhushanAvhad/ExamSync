@@ -186,8 +186,10 @@ export function AuthProvider({ children }) {
     const cleanName = fullName.trim();
     const academicYear = studentMeta.academicYear || 'TE';
     const branch = studentMeta.branch || 'CMPN';
-    const division = studentMeta.division || 'A';
-    const rollNo = studentMeta.rollNo?.trim() || `VIT-${Date.now().toString().slice(-4)}`;
+    const deptPrefix = branch.includes('CMPN') ? 'CP' : branch.includes('INFT') ? 'IT' : branch.includes('EXTC') ? 'EX' : branch.includes('BIOM') ? 'BM' : 'FE';
+    const yrPrefix = academicYear === 'FE' ? '26' : academicYear === 'SE' ? '25' : academicYear === 'TE' ? '24' : '23';
+    const defaultShortRoll = `${yrPrefix}${deptPrefix}${Date.now().toString().slice(-2)}`;
+    const rollNo = studentMeta.rollNo?.trim() || defaultShortRoll;
     const className = academicYear === 'FE' ? 'FE' : `${academicYear} ${branch}`;
 
     const { data, error } = await supabase.auth.signUp({

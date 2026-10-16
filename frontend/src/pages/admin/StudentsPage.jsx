@@ -9,7 +9,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Badge } from '../../components/ui/Badge';
 import { PlusIcon, EditIcon, TrashIcon, UploadIcon, DownloadIcon } from '../../components/ui/Icons';
-import { studentsService } from '../../services/studentsService';
+import { studentsService, generateShortRollNo } from '../../services/studentsService';
 import { exportToCSV } from '../../utils/exportUtils';
 
 export function StudentsPage() {
@@ -86,11 +86,12 @@ export function StudentsPage() {
   // Filter students
   const filteredStudents = useMemo(() => {
     return students.filter((s) => {
-      const q = searchQuery.toLowerCase();
+      const q = searchQuery.toLowerCase().trim();
+      const roll = (s.rollNo || s.id || '').toLowerCase();
       const matchesSearch =
         !q ||
         s.name.toLowerCase().includes(q) ||
-        (s.id && s.id.toLowerCase().includes(q)) ||
+        roll.includes(q) ||
         (s.email && s.email.toLowerCase().includes(q));
 
       const matchesClass =
@@ -105,14 +106,15 @@ export function StudentsPage() {
 
   // Open add modal
   const handleOpenAdd = () => {
-    const nextNum = students.length + 1;
-    const padded = nextNum.toString().padStart(3, '0');
+    const defaultClass = 'FE';
+    const autoRoll = generateShortRollNo(defaultClass, students);
     setEditingStudent(null);
     setFormData({
-      id: `STU-2026-${padded}`,
+      id: autoRoll,
+      rollNo: autoRoll,
       name: '',
       email: '',
-      className: 'FE',
+      className: defaultClass,
       division: 'A',
       status: 'Active',
       phone: '',
@@ -124,8 +126,10 @@ export function StudentsPage() {
   // Open edit modal
   const handleOpenEdit = (student) => {
     setEditingStudent(student);
+    const roll = student.rollNo || student.id;
     setFormData({
-      id: student.id,
+      id: roll,
+      rollNo: roll,
       name: student.name,
       email: student.email,
       className: student.className,
@@ -366,9 +370,9 @@ export function StudentsPage() {
   const columns = [
     {
       key: 'id',
-      label: 'Student ID',
-      width: '140px',
-      render: (val) => <span className="mono-id">{val}</span>,
+      label: 'Roll / Reg No',
+      width: '130px',
+      render: (val, row) => <span className="mono-id">{row.rollNo || val}</span>,
     },
     {
       key: 'name',
@@ -568,11 +572,11 @@ export function StudentsPage() {
       >
         <form onSubmit={handleSubmit} className="admin-modal-form">
           <Input
-            label="Student ID"
+            label="Roll / Registration No"
             id="student-id"
             value={formData.id}
-            readOnly
-            helper="Institutional student identifier (System assigned)"
+            onChange={(e) => setFormData({ ...formData, id: e.target.value, rollNo: e.target.value })}
+            helper="Standard short roll / registration identifier (e.g. 26FE01, 25CP02)"
           />
 
           <Input
@@ -603,7 +607,16 @@ export function StudentsPage() {
                 id="student-class"
                 className="input-field"
                 value={formData.className}
-                onChange={(e) => setFormData({ ...formData, className: e.target.value })}
+                onChange={(e) => {
+                  const newClass = e.target.value;
+                  // If not editing, auto suggest short roll matching the new class
+                  if (!editingStudent) {
+                    const autoRoll = generateShortRollNo(newClass, students);
+                    setFormData({ ...formData, className: newClass, id: autoRoll, rollNo: autoRoll });
+                  } else {
+                    setFormData({ ...formData, className: newClass });
+                  }
+                }}
               >
                 {classOptionsList.map((c) => (
                   <option key={c} value={c}>

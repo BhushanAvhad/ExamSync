@@ -21,6 +21,10 @@ import {
 import { exportToCSV } from '../../utils/exportUtils';
 import { OfficialPrintHeader } from '../../components/common/OfficialPrintHeader';
 import { OfficialPrintFooter } from '../../components/common/OfficialPrintFooter';
+import {
+  parseYearAndDept,
+  groupTimetableByYearAndDept,
+} from '../../utils/academicStructure';
 
 export function ReportsPage() {
   const [selectedReportType, setSelectedReportType] = useState('master'); // 'master' | 'class' | 'room' | 'summary'
@@ -36,19 +40,30 @@ export function ReportsPage() {
   // Export to Excel / CSV function with UTF-8 BOM
   const handleExportCSV = () => {
     try {
+      const rawTimetable = (() => {
+        try {
+          const raw = localStorage.getItem('examsync_timetable_data');
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+          }
+        } catch (e) {}
+        return INITIAL_TIMETABLE;
+      })();
+
       if (selectedReportType === 'master') {
         const cols = [
           { label: 'Date', key: 'date' },
           { label: 'Time Slot', key: 'timeSlot' },
+          { label: 'Academic Year', accessor: (row) => parseYearAndDept(row.className).year },
+          { label: 'Department', accessor: (row) => parseYearAndDept(row.className).department },
           { label: 'Subject Code', key: 'subjectCode' },
           { label: 'Subject Name', key: 'subjectName' },
-          { label: 'Cohort', key: 'className' },
-          { label: 'Division', key: 'division' },
-          { label: 'Room', key: 'room' },
+          { label: 'Assigned Venue', key: 'room' },
           { label: 'Duration', key: 'duration' },
           { label: 'Status', key: 'status' },
         ];
-        exportToCSV('ExamSync_Master_Timetable_Report', cols, INITIAL_TIMETABLE);
+        exportToCSV('ExamSync_Master_Timetable_Report', cols, rawTimetable);
       } else if (selectedReportType === 'class') {
         const cols = [
           { label: 'Academic Cohort', key: 'name' },
@@ -77,7 +92,15 @@ export function ReportsPage() {
           { label: 'Status', key: 'status' },
           { label: 'Description', key: 'description' },
         ];
-        exportToCSV('ExamSync_Session_Executive_Summary', cols, INITIAL_EXAM_SESSIONS);
+        let sessionList = INITIAL_EXAM_SESSIONS;
+        try {
+          const raw = localStorage.getItem('examsync_sessions');
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed) && parsed.length > 0) sessionList = parsed;
+          }
+        } catch (e) {}
+        exportToCSV('ExamSync_Session_Executive_Summary', cols, sessionList);
       }
       setToastMessage(`Exported ${selectedReportType.toUpperCase()} report to Excel/CSV`);
     } catch (err) {
@@ -182,41 +205,88 @@ export function ReportsPage() {
           sessionTitle="Spring 2026 Final Examinations"
         />
 
-        {/* Report 1: Master Timetable Preview */}
+        {/* Report 1: Master Timetable Preview (Grouped Year-wise and Department-wise) */}
         {selectedReportType === 'master' && (
-          <div className="table-wrapper">
-            <table className="table">
-              <thead className="table-header">
-                <tr>
-                  <th className="table-th">Date</th>
-                  <th className="table-th">Time Slot</th>
-                  <th className="table-th">Subject Code & Title</th>
-                  <th className="table-th">Cohort</th>
-                  <th className="table-th">Venue</th>
-                  <th className="table-th">Duration</th>
-                  <th className="table-th">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {INITIAL_TIMETABLE.map((row) => (
-                  <tr key={row.id} className="table-row">
-                    <td className="table-td mono-date">{row.date}</td>
-                    <td className="table-td">{row.timeSlot}</td>
-                    <td className="table-td">
-                      <strong>{row.subjectCode}</strong>: {row.subjectName}
-                    </td>
-                    <td className="table-td">{row.className} ({row.division})</td>
-                    <td className="table-td">{row.room}</td>
-                    <td className="table-td">{row.duration}</td>
-                    <td className="table-td">
-                      <Badge variant={row.status === 'Optimized' ? 'optimized' : 'scheduled'}>
-                        {row.status}
-                      </Badge>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="report-master-timetable-container">
+            {groupTimetableByYearAndDept(
+              (() => {
+                try {
+                  const raw = localStorage.getItem('examsync_timetable_data');
+                  if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+                  }
+                } catch (e) {}
+                return INITIAL_TIMETABLE;
+              })()
+            ).map((grp) => (
+              <div key={grp.key} className="printable-cohort-section" style={{ pageBreakInside: 'avoid', breakInside: 'avoid', marginBottom: 24 }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    background: '#0f172a',
+                    color: '#ffffff',
+                    padding: '8px 12px',
+                    borderRadius: '4px',
+                    marginBottom: '8px',
+                    WebkitPrintColorAdjust: 'exact',
+                    printColorAdjust: 'exact',
+                  }}
+                >
+                  <div>
+                    <span style={{ background: '#38bdf8', color: '#0f172a', fontWeight: 800, fontSize: '11px', padding: '2px 8px', borderRadius: '3px', marginRight: '8px', letterSpacing: '0.5px' }}>
+                      {grp.year}
+                    </span>
+                    <strong style={{ fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+                      {grp.title}
+                    </strong>
+                  </div>
+                  <span style={{ fontSize: '11px', color: '#cbd5e1', fontWeight: 600 }}>
+                    {grp.items.length} Exam Paper{grp.items.length > 1 ? 's' : ''} Scheduled
+                  </span>
+                </div>
+
+                <div className="table-wrapper">
+                  <table className="table printable-official-table">
+                    <thead className="table-header">
+                      <tr>
+                        <th className="table-th" style={{ width: '105px' }}>Date</th>
+                        <th className="table-th" style={{ width: '65px' }}>Day</th>
+                        <th className="table-th" style={{ width: '135px' }}>Time Slot</th>
+                        <th className="table-th" style={{ width: '95px' }}>Subject Code</th>
+                        <th className="table-th">Subject Title</th>
+                        <th className="table-th" style={{ width: '110px' }}>Assigned Venue</th>
+                        <th className="table-th" style={{ width: '80px' }}>Duration</th>
+                        <th className="table-th" style={{ width: '90px' }}>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {grp.items.map((row) => {
+                        const dayStr = new Date(row.date).toLocaleDateString('en-US', { weekday: 'short' });
+                        return (
+                          <tr key={row.id} className="table-row">
+                            <td className="table-td mono-date">{row.date}</td>
+                            <td className="table-td">{dayStr}</td>
+                            <td className="table-td">{row.timeSlot}</td>
+                            <td className="table-td"><strong>{row.subjectCode}</strong></td>
+                            <td className="table-td">{row.subjectName}</td>
+                            <td className="table-td">{row.room}</td>
+                            <td className="table-td">{row.duration}</td>
+                            <td className="table-td">
+                              <Badge variant={row.status === 'Optimized' ? 'optimized' : 'scheduled'}>
+                                {row.status}
+                              </Badge>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
