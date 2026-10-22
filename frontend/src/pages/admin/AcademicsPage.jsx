@@ -7,6 +7,7 @@ import { ConfirmDialog } from '../../components/admin/ConfirmDialog';
 import { Toast } from '../../components/admin/Toast';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import { Badge } from '../../components/ui/Badge';
 import {
   PlusIcon,
   EditIcon,
@@ -23,13 +24,43 @@ import { academicsService } from '../../services/academicsService';
 export function AcademicsPage() {
   const [activeTab, setActiveTab] = useState('classes'); // 'classes' | 'subjects' | 'assignments'
 
-  // Local state for tabs
-  const [classes, setClasses] = useState(INITIAL_CLASSES);
-  const [subjects, setSubjects] = useState(INITIAL_SUBJECTS);
-  const [assignments, setAssignments] = useState(INITIAL_ASSIGNMENTS);
+  // Local state initialized with cached storage for instantaneous dynamic loading
+  const [classes, setClasses] = useState(() => {
+    try {
+      const raw = localStorage.getItem('examsync_classes');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return INITIAL_CLASSES;
+  });
+
+  const [subjects, setSubjects] = useState(() => {
+    try {
+      const raw = localStorage.getItem('examsync_subjects');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return INITIAL_SUBJECTS;
+  });
+
+  const [assignments, setAssignments] = useState(() => {
+    try {
+      const raw = localStorage.getItem('examsync_assignments');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return INITIAL_ASSIGNMENTS;
+  });
+
   const [loading, setLoading] = useState(true);
 
-  // Load from Supabase on mount
+  // Load latest dynamic datasets from service
   const loadAcademics = useCallback(async () => {
     try {
       setLoading(true);
@@ -50,6 +81,24 @@ export function AcademicsPage() {
 
   useEffect(() => {
     loadAcademics();
+
+    const handleSync = () => {
+      loadAcademics();
+    };
+
+    window.addEventListener('examsync_students_updated', handleSync);
+    window.addEventListener('examsync_classes_updated', handleSync);
+    window.addEventListener('examsync_subjects_updated', handleSync);
+    window.addEventListener('examsync_assignments_updated', handleSync);
+    window.addEventListener('storage', handleSync);
+
+    return () => {
+      window.removeEventListener('examsync_students_updated', handleSync);
+      window.removeEventListener('examsync_classes_updated', handleSync);
+      window.removeEventListener('examsync_subjects_updated', handleSync);
+      window.removeEventListener('examsync_assignments_updated', handleSync);
+      window.removeEventListener('storage', handleSync);
+    };
   }, [loadAcademics]);
 
   // Search and filter
@@ -177,7 +226,7 @@ export function AcademicsPage() {
   const handleOpenAddSubject = () => {
     const nextId = `SUB-${(subjects.length + 1).toString().padStart(2, '0')}`;
     setEditingSubject(null);
-    setSubjectForm({ id: nextId, code: '', name: '', applicableClasses: 'FE (A)', duration: '3.0 Hours' });
+    setSubjectForm({ id: nextId, code: '', name: '', applicableClasses: 'TE INFT', duration: '3.0 Hours' });
     setSubjectErrors({});
     setIsSubjectModalOpen(true);
   };
@@ -257,8 +306,15 @@ export function AcademicsPage() {
     {
       key: 'studentCount',
       label: 'Enrolled Examinees',
-      width: '160px',
-      render: (val) => <span>{val} Students</span>,
+      width: '180px',
+      render: (val, row) => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span>{val} Students</span>
+          {row?.actualEnrolledCount > 0 && (
+            <Badge variant="available">Live Enrolled</Badge>
+          )}
+        </div>
+      ),
     },
     {
       key: 'actions',
@@ -634,7 +690,7 @@ export function AcademicsPage() {
             <Input
               label="Applicable Cohorts (Comma-separated)"
               id="subject-cohorts"
-              placeholder="e.g. FE (A), FE (B), TE CMPN (A)"
+              placeholder="e.g. FE, SE CMPN, TE INFT, BE EXTC"
               value={subjectForm.applicableClasses}
               onChange={(e) => setSubjectForm({ ...subjectForm, applicableClasses: e.target.value })}
             />

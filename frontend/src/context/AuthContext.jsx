@@ -192,6 +192,8 @@ export function AuthProvider({ children }) {
     const rollNo = studentMeta.rollNo?.trim() || defaultShortRoll;
     const className = academicYear === 'FE' ? 'FE' : `${academicYear} ${branch}`;
 
+    const division = studentMeta.division || 'A';
+
     const { data, error } = await supabase.auth.signUp({
       email: cleanEmail,
       password,

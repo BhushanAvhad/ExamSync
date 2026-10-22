@@ -45,13 +45,11 @@ export function StudentTimetablePage() {
       setLoading(true);
       const [profRes, ttRes] = await Promise.all([
         studentPortalService.getProfile(user?.id, user?.email, user?.user_metadata),
-        studentPortalService.getStudentTimetable(user?.id, user?.email),
+        studentPortalService.getStudentTimetable(user?.id, user?.email, user?.user_metadata),
       ]);
       if (profRes.data) setStudentInfo(profRes.data);
-      if (ttRes.data && ttRes.data.length > 0) {
+      if (ttRes.data) {
         setTimetable(ttRes.data);
-      } else {
-        setTimetable(STUDENT_TIMETABLE_ENTRIES);
       }
       try {
         const activePub = localStorage.getItem('examsync_active_timetable_published');
@@ -59,7 +57,6 @@ export function StudentTimetablePage() {
       } catch (e) {}
     } catch (err) {
       console.error('Failed to load student timetable or profile:', err);
-      setTimetable(STUDENT_TIMETABLE_ENTRIES);
     } finally {
       setLoading(false);
     }
@@ -102,11 +99,11 @@ export function StudentTimetablePage() {
   const candidateClass =
     studentInfo?.className ||
     authProfile?.department ||
-    'TE CMPN';
+    'TE INFT';
 
   const candidateDivision =
     studentInfo?.division ||
-    'Division A';
+    '';
 
   const candidateProgram = candidateClass.includes('CMPN')
     ? 'B.E. Computer Engineering (VIT Mumbai)'
@@ -251,7 +248,7 @@ export function StudentTimetablePage() {
     <div className="admin-page-content student-timetable-page">
       <PageHeader
         title="My Examination Timetable & Admit Card"
-        subtitle={`Official examination schedule for ${candidateName} (${candidateId}) • ${candidateClass} (${candidateDivision})`}
+        subtitle={`Official examination schedule for ${candidateName} (${candidateId}) • ${candidateClass}${candidateDivision ? ` (${candidateDivision})` : ''}`}
         category="Examinations"
         badge={
           <span className={`publication-badge-pill ${isPublished ? 'published' : 'draft'}`}>
@@ -285,7 +282,7 @@ export function StudentTimetablePage() {
       <div className="admin-banner info-banner" style={{ borderLeft: '4px solid #10b981', marginBottom: 20 }}>
         <ShieldCheckIcon size={18} className="banner-icon" style={{ color: '#10b981' }} />
         <div className="banner-content">
-          <strong>Official Hall Ticket Record</strong> — Candidate: <strong>{candidateName}</strong> | Roll/ID: <strong>{candidateId}</strong> | Cohort: <strong>{candidateClass} ({candidateDivision})</strong>. Verify paper schedule and desk assignments below.
+          <strong>Official Hall Ticket Record</strong> — Candidate: <strong>{candidateName}</strong> | Roll/ID: <strong>{candidateId}</strong> | Cohort: <strong>{candidateClass}{candidateDivision ? ` (${candidateDivision})` : ''}</strong>. Verify paper schedule and desk assignments below.
         </div>
       </div>
 
@@ -397,7 +394,7 @@ export function StudentTimetablePage() {
             </div>
             <div className="candidate-detail-item">
               <span className="cd-label">Cohort & Section:</span>
-              <span className="cd-val">{candidateClass} — {candidateDivision}</span>
+              <span className="cd-val">{candidateClass}{candidateDivision ? ` — ${candidateDivision}` : ''}</span>
             </div>
             <div className="candidate-detail-item">
               <span className="cd-label">Exam Center:</span>
@@ -429,18 +426,26 @@ export function StudentTimetablePage() {
             </tr>
           </thead>
           <tbody>
-            {filteredEntries.map((row) => (
-              <tr key={row.id}>
-                <td className="print-nowrap" style={{ fontWeight: 600 }}>{row.date} ({row.day ? row.day.slice(0, 3) : ''})</td>
-                <td className="print-nowrap">{row.timeSlot}</td>
-                <td className="mono-id print-nowrap">{row.subjectCode}</td>
-                <td className="subject-tbl-name">{row.subjectName}</td>
-                <td className="print-nowrap">{row.room}</td>
-                <td className="print-nowrap" style={{ fontWeight: 700, textAlign: 'center' }}>{row.seatNumber}</td>
-                <td className="print-nowrap">{row.duration}</td>
-                <td style={{ textAlign: 'center', color: '#94a3b8' }}>________</td>
+            {filteredEntries.length === 0 ? (
+              <tr>
+                <td colSpan={8} style={{ textAlign: 'center', padding: '24px', color: '#64748b' }}>
+                  No examination papers currently scheduled for {candidateClass}.
+                </td>
               </tr>
-            ))}
+            ) : (
+              filteredEntries.map((row) => (
+                <tr key={row.id}>
+                  <td className="print-nowrap" style={{ fontWeight: 600 }}>{row.date} ({row.day ? row.day.slice(0, 3) : ''})</td>
+                  <td className="print-nowrap">{row.timeSlot}</td>
+                  <td className="mono-id print-nowrap">{row.subjectCode}</td>
+                  <td className="subject-tbl-name">{row.subjectName}</td>
+                  <td className="print-nowrap">{row.room}</td>
+                  <td className="print-nowrap" style={{ fontWeight: 700, textAlign: 'center' }}>{row.seatNumber}</td>
+                  <td className="print-nowrap">{row.duration}</td>
+                  <td style={{ textAlign: 'center', color: '#94a3b8' }}>________</td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
 

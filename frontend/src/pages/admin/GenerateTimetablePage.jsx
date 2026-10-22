@@ -26,6 +26,7 @@ import { sessionsService } from '../../services/sessionsService';
 import { academicsService } from '../../services/academicsService';
 import { roomsService } from '../../services/roomsService';
 import { generatorService } from '../../services/generatorService';
+import { inferSubjectYear, inferSubjectDept, cleanSubjectCode } from '../../utils/academicStructure';
 
 export function GenerateTimetablePage({ onNavigate }) {
   const [currentStep, setCurrentStep] = useState(1);
@@ -82,7 +83,16 @@ export function GenerateTimetablePage({ onNavigate }) {
 
   // Step 2: Curriculum & Labs Selection
   const [selectedSubjectCodes, setSelectedSubjectCodes] = useState(() => {
-    return new Set(INITIAL_SUBJECTS.map((s) => s.code));
+    try {
+      const raw = localStorage.getItem('examsync_subjects');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return new Set(parsed.map((s) => cleanSubjectCode(s.code)));
+        }
+      }
+    } catch (e) {}
+    return new Set(INITIAL_SUBJECTS.map((s) => cleanSubjectCode(s.code)));
   });
   const [curriculumTypeFilter, setCurriculumTypeFilter] = useState('all'); // 'all' | 'theory' | 'lab'
   const [curriculumYearFilter, setCurriculumYearFilter] = useState('all'); // 'all' | 'FE' | 'SE' | 'TE' | 'BE'
@@ -111,7 +121,14 @@ export function GenerateTimetablePage({ onNavigate }) {
             return exists ? prev : sessRes.data[0].id;
           });
         }
-        if (subRes.data) setSubjects(subRes.data);
+        if (subRes.data && subRes.data.length > 0) {
+          setSubjects(subRes.data);
+          setSelectedSubjectCodes((prev) => {
+            const next = new Set(prev);
+            subRes.data.forEach((s) => next.add(cleanSubjectCode(s.code)));
+            return next;
+          });
+        }
         if (clsRes.data) setClasses(clsRes.data);
         if (rmRes.data) setRooms(rmRes.data);
       } catch (err) {
@@ -120,9 +137,19 @@ export function GenerateTimetablePage({ onNavigate }) {
     }
     loadData();
 
-    const handleSessionsUpdate = () => loadData();
-    window.addEventListener('examsync_sessions_updated', handleSessionsUpdate);
-    return () => window.removeEventListener('examsync_sessions_updated', handleSessionsUpdate);
+    const handleSyncUpdate = () => loadData();
+    window.addEventListener('examsync_sessions_updated', handleSyncUpdate);
+    window.addEventListener('examsync_classes_updated', handleSyncUpdate);
+    window.addEventListener('examsync_subjects_updated', handleSyncUpdate);
+    window.addEventListener('examsync_students_updated', handleSyncUpdate);
+    window.addEventListener('examsync_rooms_updated', handleSyncUpdate);
+    return () => {
+      window.removeEventListener('examsync_sessions_updated', handleSyncUpdate);
+      window.removeEventListener('examsync_classes_updated', handleSyncUpdate);
+      window.removeEventListener('examsync_subjects_updated', handleSyncUpdate);
+      window.removeEventListener('examsync_students_updated', handleSyncUpdate);
+      window.removeEventListener('examsync_rooms_updated', handleSyncUpdate);
+    };
   }, []);
 
   // Step 3 Constraints state
@@ -201,17 +228,16 @@ export function GenerateTimetablePage({ onNavigate }) {
       if (curriculumTypeFilter === 'theory' && isLab) return false;
       if (curriculumTypeFilter === 'lab' && !isLab) return false;
 
-      if (curriculumYearFilter !== 'all' && s.year !== curriculumYearFilter) {
-        const matchesCode = (s.code || '').includes(`-${curriculumYearFilter}-`);
-        const matchesClass = (s.applicableClasses || []).some((c) => c.startsWith(curriculumYearFilter));
-        if (!matchesCode && !matchesClass) return false;
+      if (curriculumYearFilter !== 'all') {
+        const itemYear = s.year || inferSubjectYear(s);
+        if (itemYear !== curriculumYearFilter) return false;
       }
 
       if (curriculumSearch) {
         const q = curriculumSearch.toLowerCase().trim();
         const codeMatch = (s.code || '').toLowerCase().includes(q);
         const nameMatch = (s.name || '').toLowerCase().includes(q);
-        const deptMatch = (s.department || '').toLowerCase().includes(q);
+        const deptMatch = (s.department || inferSubjectDept(s) || '').toLowerCase().includes(q);
         if (!codeMatch && !nameMatch && !deptMatch) return false;
       }
 
@@ -230,7 +256,7 @@ export function GenerateTimetablePage({ onNavigate }) {
         if (isLab) labCount++;
         else theoryCount++;
 
-        const yr = s.year || (s.code.includes('-FE-') ? 'FE' : s.code.includes('-CMPN-4-') || s.code.includes('-IT-4-') || s.code.includes('-EXTC-4-') ? 'SE' : s.code.includes('-CMPN-6-') || s.code.includes('-IT-6-') || s.code.includes('-EXTC-6-') ? 'TE' : s.code.includes('-8-') ? 'BE' : null);
+        const yr = s.year || inferSubjectYear(s);
         if (yr && yearCounts[yr] !== undefined) {
           yearCounts[yr]++;
         }
@@ -260,11 +286,13 @@ export function GenerateTimetablePage({ onNavigate }) {
       setGenerationError(null);
       setGenerationResult(null);
 
-      // Prepare active selected subjects & assignments based on user's curriculum selection
-      const activeSubjects = subjects.filter((s) => selectedSubjectCodes.has(s.code));
-      const activeAssignments = INITIAL_ASSIGNMENTS.map((a) => ({
+      // Prepare active selected subjects & dynamic assignments based on user's curriculum selection
+      const asgnRes = await academicsService.getAssignments();
+      const currentAssignments = asgnRes.data && asgnRes.data.length > 0 ? asgnRes.data : INITIAL_ASSIGNMENTS;
+      const activeSubjects = subjects.filter((s) => selectedSubjectCodes.has(cleanSubjectCode(s.code)));
+      const activeAssignments = currentAssignments.map((a) => ({
         ...a,
-        subjectCodes: (a.subjectCodes || []).filter((c) => selectedSubjectCodes.has(c)),
+        subjectCodes: (a.subjectCodes || []).map(cleanSubjectCode).filter((c) => selectedSubjectCodes.has(c)),
       })).filter((a) => a.subjectCodes.length > 0);
 
       const maxGens = settings.algorithmMode.includes('Fast') ? 80 : 140;
@@ -279,6 +307,7 @@ export function GenerateTimetablePage({ onNavigate }) {
         institutionalData: {
           subjects: activeSubjects,
           assignments: activeAssignments,
+          classes,
           rooms,
           sessions,
         },
@@ -299,7 +328,7 @@ export function GenerateTimetablePage({ onNavigate }) {
               id: t.eventId || `TT-GEN-${idx + 1}`,
               date: t.date,
               timeSlot: `${t.startTime} — ${t.endTime}`,
-              subjectCode: t.subjectCode || '—',
+              subjectCode: cleanSubjectCode(t.subjectCode) || '—',
               subjectName: t.subjectName || '—',
               year,
               department,
@@ -625,7 +654,7 @@ export function GenerateTimetablePage({ onNavigate }) {
                               />
                             </td>
                             <td>
-                              <span className="mono-code">{sub.code}</span>
+                              <span className="mono-code">{cleanSubjectCode(sub.code)}</span>
                             </td>
                             <td>
                               <strong>{sub.name}</strong>
@@ -637,7 +666,7 @@ export function GenerateTimetablePage({ onNavigate }) {
                             </td>
                             <td>
                               <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                                {sub.year || 'FE'} • {sub.department || 'Applied Sciences'}
+                                {sub.year || inferSubjectYear(sub)} • {sub.department || inferSubjectDept(sub)}
                               </span>
                             </td>
                             <td>{sub.duration || (isLab ? '2.0 Hours' : '3.0 Hours')}</td>

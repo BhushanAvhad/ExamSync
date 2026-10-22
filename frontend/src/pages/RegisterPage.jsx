@@ -29,7 +29,6 @@ export function RegisterPage({ onNavigate }) {
   const [email, setEmail] = useState('');
   const [academicYear, setAcademicYear] = useState('TE');
   const [branch, setBranch] = useState('CMPN');
-  const [division, setDivision] = useState('A');
   const [rollNo, setRollNo] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -70,7 +69,6 @@ export function RegisterPage({ onNavigate }) {
       const result = await signUpStudent(fullName, email, password, {
         academicYear,
         branch,
-        division,
         rollNo: rollNo.trim(),
         className,
       });
@@ -267,34 +265,16 @@ export function RegisterPage({ onNavigate }) {
               </div>
             </div>
 
-            <div className="form-row-2col">
-              <div className="input-group">
-                <label htmlFor="register-division" className="input-label">Division</label>
-                <select
-                  id="register-division"
-                  className="input-field"
-                  value={division}
-                  onChange={(e) => setDivision(e.target.value)}
-                  disabled={submitting}
-                  required
-                >
-                  <option value="A">Division A</option>
-                  <option value="B">Division B</option>
-                  <option value="C">Division C</option>
-                </select>
-              </div>
-
-              <Input
-                label="Roll No / Candidate ID"
-                id="register-rollno"
-                type="text"
-                placeholder="e.g. 21102A0012"
-                value={rollNo}
-                onChange={(e) => setRollNo(e.target.value)}
-                required
-                disabled={submitting}
-              />
-            </div>
+            <Input
+              label="Roll No / Candidate ID"
+              id="register-rollno"
+              type="text"
+              placeholder="e.g. 21102A0012"
+              value={rollNo}
+              onChange={(e) => setRollNo(e.target.value)}
+              required
+              disabled={submitting}
+            />
 
             <Input
               label="Password"

@@ -32,16 +32,14 @@ export function StudentOverviewPage({ onNavigate }) {
       if (user?.id || user?.email) {
         const [profRes, ttRes, subRes] = await Promise.all([
           studentPortalService.getProfile(user?.id, user?.email, user?.user_metadata),
-          studentPortalService.getStudentTimetable(user?.id, user?.email),
-          studentPortalService.getRegisteredSubjects(user?.id, user?.email),
+          studentPortalService.getStudentTimetable(user?.id, user?.email, user?.user_metadata),
+          studentPortalService.getRegisteredSubjects(user?.id, user?.email, user?.user_metadata),
         ]);
         if (profRes.data) setProfile(profRes.data);
-        if (ttRes.data && ttRes.data.length > 0) {
+        if (ttRes.data) {
           setTimetable(ttRes.data);
-        } else {
-          setTimetable(STUDENT_TIMETABLE_ENTRIES);
         }
-        if (subRes.data && subRes.data.length > 0) setSubjects(subRes.data);
+        if (subRes.data) setSubjects(subRes.data);
       } else if (authProfile) {
         setProfile((prev) => ({
           ...prev,
@@ -74,12 +72,12 @@ export function StudentOverviewPage({ onNavigate }) {
       {/* Welcome Page Header */}
       <PageHeader
         title={`Welcome back, ${profile.name}`}
-        subtitle={`Vidyalankar Institute of Technology (VIT) — Examination Schedule & Hall Allocations for ${profile.className} (${profile.division}).`}
+        subtitle={`Vidyalankar Institute of Technology (VIT) — Examination Schedule & Hall Allocations for ${profile.className}${profile.division ? ` (${profile.division})` : ''}.`}
         category="Student Portal"
         badge={
           <span className="overview-cycle-pill student-cycle-pill">
             <span className="cycle-dot" />
-            {profile.className} • {profile.division}
+            {profile.className}{profile.division ? ` • ${profile.division}` : ''}
           </span>
         }
         actions={
@@ -355,10 +353,12 @@ export function StudentOverviewPage({ onNavigate }) {
                 <span className="md-label">Program:</span>
                 <span className="md-value">{profile.className}</span>
               </div>
-              <div className="mini-detail-row">
-                <span className="md-label">Division:</span>
-                <span className="md-value">{profile.division}</span>
-              </div>
+              {profile.division ? (
+                <div className="mini-detail-row">
+                  <span className="md-label">Division:</span>
+                  <span className="md-value">{profile.division}</span>
+                </div>
+              ) : null}
               <div className="mini-detail-row">
                 <span className="md-label">Academic Advisor:</span>
                 <span className="md-value">{profile.advisor}</span>

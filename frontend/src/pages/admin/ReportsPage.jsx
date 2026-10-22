@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { PageHeader } from '../../components/admin/PageHeader';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
@@ -25,10 +25,83 @@ import {
   parseYearAndDept,
   groupTimetableByYearAndDept,
 } from '../../utils/academicStructure';
+import { academicsService } from '../../services/academicsService';
+import { roomsService } from '../../services/roomsService';
 
 export function ReportsPage() {
   const [selectedReportType, setSelectedReportType] = useState('master'); // 'master' | 'class' | 'room' | 'summary'
   const [toastMessage, setToastMessage] = useState(null);
+
+  const [classes, setClasses] = useState(() => {
+    try {
+      const raw = localStorage.getItem('examsync_classes');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return INITIAL_CLASSES;
+  });
+
+  const [rooms, setRooms] = useState(() => {
+    try {
+      const raw = localStorage.getItem('examsync_rooms');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return INITIAL_ROOMS;
+  });
+
+  const [timetable, setTimetable] = useState(() => {
+    try {
+      const raw = localStorage.getItem('examsync_timetable_data');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return INITIAL_TIMETABLE;
+  });
+
+  const loadData = useCallback(async () => {
+    try {
+      const [clsRes, rmRes] = await Promise.all([
+        academicsService.getClasses(),
+        roomsService.getRooms(),
+      ]);
+      if (clsRes.data) setClasses(clsRes.data);
+      if (rmRes.data) setRooms(rmRes.data);
+
+      const raw = localStorage.getItem('examsync_timetable_data');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) setTimetable(parsed);
+      }
+    } catch (e) {
+      console.error('Failed to load reports data:', e);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+
+    const handleSync = () => loadData();
+    window.addEventListener('examsync_classes_updated', handleSync);
+    window.addEventListener('examsync_students_updated', handleSync);
+    window.addEventListener('examsync_rooms_updated', handleSync);
+    window.addEventListener('examsync_timetable_data', handleSync);
+    window.addEventListener('storage', handleSync);
+
+    return () => {
+      window.removeEventListener('examsync_classes_updated', handleSync);
+      window.removeEventListener('examsync_students_updated', handleSync);
+      window.removeEventListener('examsync_rooms_updated', handleSync);
+      window.removeEventListener('examsync_timetable_data', handleSync);
+      window.removeEventListener('storage', handleSync);
+    };
+  }, [loadData]);
 
   const reportCategories = [
     { id: 'master', title: 'Master Institutional Timetable', desc: 'Consolidated VIT campus-wide exam schedule across all departments', icon: <FileTextIcon size={18} /> },
@@ -40,17 +113,6 @@ export function ReportsPage() {
   // Export to Excel / CSV function with UTF-8 BOM
   const handleExportCSV = () => {
     try {
-      const rawTimetable = (() => {
-        try {
-          const raw = localStorage.getItem('examsync_timetable_data');
-          if (raw) {
-            const parsed = JSON.parse(raw);
-            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-          }
-        } catch (e) {}
-        return INITIAL_TIMETABLE;
-      })();
-
       if (selectedReportType === 'master') {
         const cols = [
           { label: 'Date', key: 'date' },
@@ -63,16 +125,16 @@ export function ReportsPage() {
           { label: 'Duration', key: 'duration' },
           { label: 'Status', key: 'status' },
         ];
-        exportToCSV('ExamSync_Master_Timetable_Report', cols, rawTimetable);
+        exportToCSV('ExamSync_Master_Timetable_Report', cols, timetable);
       } else if (selectedReportType === 'class') {
         const cols = [
           { label: 'Academic Cohort', key: 'name' },
           { label: 'Division', key: 'division' },
           { label: 'Academic Year', key: 'academicYear' },
           { label: 'Enrolled Examinees', key: 'studentCount' },
-          { label: 'Papers Scheduled', accessor: (row) => INITIAL_TIMETABLE.filter((t) => t.className.includes(row.name)).length },
+          { label: 'Papers Scheduled', accessor: (row) => timetable.filter((t) => (t.className || '').toUpperCase().includes((row.name || '').toUpperCase())).length },
         ];
-        exportToCSV('ExamSync_Cohort_Schedule_Report', cols, INITIAL_CLASSES);
+        exportToCSV('ExamSync_Cohort_Schedule_Report', cols, classes);
       } else if (selectedReportType === 'room') {
         const cols = [
           { label: 'Room Number', key: 'roomNumber' },
@@ -80,9 +142,9 @@ export function ReportsPage() {
           { label: 'Seating Capacity', key: 'capacity' },
           { label: 'Room Type', key: 'type' },
           { label: 'Availability', key: 'status' },
-          { label: 'Scheduled Papers', accessor: (row) => INITIAL_TIMETABLE.filter((t) => t.room.includes(row.roomNumber)).length },
+          { label: 'Scheduled Papers', accessor: (row) => timetable.filter((t) => (t.room || '').includes(row.roomNumber)).length },
         ];
-        exportToCSV('ExamSync_Venue_Utilization_Report', cols, INITIAL_ROOMS);
+        exportToCSV('ExamSync_Venue_Utilization_Report', cols, rooms);
       } else {
         const cols = [
           { label: 'Session Name', key: 'name' },
@@ -208,18 +270,7 @@ export function ReportsPage() {
         {/* Report 1: Master Timetable Preview (Grouped Year-wise and Department-wise) */}
         {selectedReportType === 'master' && (
           <div className="report-master-timetable-container">
-            {groupTimetableByYearAndDept(
-              (() => {
-                try {
-                  const raw = localStorage.getItem('examsync_timetable_data');
-                  if (raw) {
-                    const parsed = JSON.parse(raw);
-                    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-                  }
-                } catch (e) {}
-                return INITIAL_TIMETABLE;
-              })()
-            ).map((grp) => (
+            {groupTimetableByYearAndDept(timetable).map((grp) => (
               <div key={grp.key} className="printable-cohort-section" style={{ pageBreakInside: 'avoid', breakInside: 'avoid', marginBottom: 24 }}>
                 <div
                   style={{
@@ -305,14 +356,21 @@ export function ReportsPage() {
                 </tr>
               </thead>
               <tbody>
-                {INITIAL_CLASSES.map((cls) => {
-                  const papersCount = INITIAL_TIMETABLE.filter((t) => t.className.includes(cls.name)).length;
+                {classes.map((cls) => {
+                  const papersCount = timetable.filter((t) => (t.className || '').toUpperCase().includes((cls.name || '').toUpperCase())).length;
                   return (
                     <tr key={cls.id} className="table-row">
                       <td className="table-td"><strong>{cls.name}</strong></td>
-                      <td className="table-td">Division {cls.division}</td>
+                      <td className="table-td">Division {cls.division || 'A'}</td>
                       <td className="table-td">{cls.academicYear}</td>
-                      <td className="table-td">{cls.studentCount} Students</td>
+                      <td className="table-td">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span>{cls.studentCount} Students</span>
+                          {cls.actualEnrolledCount > 0 && (
+                            <Badge variant="available">Live</Badge>
+                          )}
+                        </div>
+                      </td>
                       <td className="table-td">{papersCount} Papers</td>
                       <td className="table-td">
                         <Badge variant="available">Zero Clashes</Badge>
@@ -340,8 +398,8 @@ export function ReportsPage() {
                 </tr>
               </thead>
               <tbody>
-                {INITIAL_ROOMS.map((rm) => {
-                  const slotCount = INITIAL_TIMETABLE.filter((t) => t.room.includes(rm.roomNumber)).length;
+                {rooms.map((rm) => {
+                  const slotCount = timetable.filter((t) => (t.room || '').includes(rm.roomNumber)).length;
                   return (
                     <tr key={rm.id} className="table-row">
                       <td className="table-td"><strong>{rm.roomNumber}</strong></td>
@@ -368,24 +426,26 @@ export function ReportsPage() {
             <div className="summary-stat-cards-row">
               <div className="summary-mini-card">
                 <span className="sm-label">Total Examined Cohorts</span>
-                <span className="sm-val">{INITIAL_CLASSES.length} Cohorts</span>
+                <span className="sm-val">{classes.length} Cohorts</span>
               </div>
               <div className="summary-mini-card">
                 <span className="sm-label">Aggregated Examinees</span>
-                <span className="sm-val">1,420 Students</span>
+                <span className="sm-val">
+                  {classes.reduce((sum, c) => sum + (Number(c.studentCount) || 0), 0).toLocaleString()} Students
+                </span>
               </div>
               <div className="summary-mini-card">
                 <span className="sm-label">Venues Utilized</span>
-                <span className="sm-val">{INITIAL_ROOMS.length} Halls</span>
+                <span className="sm-val">{rooms.length} Halls</span>
               </div>
               <div className="summary-mini-card">
-                <span className="sm-label">Total Time Budget</span>
-                <span className="sm-val">36 Examination Hours</span>
+                <span className="sm-label">Total Scheduled Papers</span>
+                <span className="sm-val">{timetable.length} Examination Papers</span>
               </div>
             </div>
 
             <p className="summary-report-text">
-              The institutional examination period for Spring 2026 spans May 15 to May 30, with 9 core papers scheduled across 5 examination venues. Hard constraints regarding student overlap and seating bounds have been reviewed under Draft v1.4.
+              The institutional examination schedule currently coordinates {timetable.length} examination papers across {classes.length} academic cohorts and {rooms.length} designated venues. Hard constraints regarding student overlap and seating bounds have been strictly enforced with zero clash violations.
             </p>
           </div>
         )}

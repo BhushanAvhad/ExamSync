@@ -36,247 +36,247 @@ const VIT_FALLBACK_ASSIGNMENTS = [
   // --- First Year (FE - Common Applied Sciences Sem 2) ---
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000001', name: 'FE', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000101', code: 'DEMO-FE-2-01', name: 'Engineering Mathematics-II', type: 'Theory', duration_minutes: 180 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000101', code: 'FE-2-01', name: 'Engineering Mathematics-II', type: 'Theory', duration_minutes: 180 },
   },
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000001', name: 'FE', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000102', code: 'DEMO-FE-2-02', name: 'Engineering Graphics', type: 'Theory', duration_minutes: 180 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000102', code: 'FE-2-02', name: 'Engineering Graphics', type: 'Theory', duration_minutes: 180 },
   },
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000001', name: 'FE', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000103', code: 'DEMO-FE-2-L02', name: 'Engineering Graphics Lab', type: 'Lab', duration_minutes: 120 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000103', code: 'FE-2-L02', name: 'Engineering Graphics Lab', type: 'Lab', duration_minutes: 120 },
   },
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000001', name: 'FE', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000104', code: 'DEMO-FE-2-03', name: 'Computer Organization and Architecture', type: 'Theory', duration_minutes: 180 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000104', code: 'FE-2-03', name: 'Computer Organization and Architecture', type: 'Theory', duration_minutes: 180 },
   },
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000001', name: 'FE', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000105', code: 'DEMO-FE-2-L03', name: 'Computer Organization and Architecture Lab', type: 'Lab', duration_minutes: 120 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000105', code: 'FE-2-L03', name: 'Computer Organization and Architecture Lab', type: 'Lab', duration_minutes: 120 },
   },
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000001', name: 'FE', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000106', code: 'DEMO-FE-2-04', name: 'Object-Oriented Programming', type: 'Theory', duration_minutes: 180 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000106', code: 'FE-2-04', name: 'Object-Oriented Programming', type: 'Theory', duration_minutes: 180 },
   },
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000001', name: 'FE', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000107', code: 'DEMO-FE-2-L04', name: 'Object-Oriented Programming Lab', type: 'Lab', duration_minutes: 120 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000107', code: 'FE-2-L04', name: 'Object-Oriented Programming Lab', type: 'Lab', duration_minutes: 120 },
   },
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000001', name: 'FE', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000108', code: 'DEMO-FE-2-05', name: 'Professional Skills', type: 'Theory', duration_minutes: 120 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000108', code: 'FE-2-05', name: 'Professional Skills', type: 'Theory', duration_minutes: 120 },
   },
 
   // --- Second Year Computer Engineering (SE CMPN - Sem 4) ---
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000003', name: 'SE CMPN', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000201', code: 'DEMO-CMPN-4-01', name: 'Engineering Mathematics-IV', type: 'Theory', duration_minutes: 180 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000201', code: 'CMPN-4-01', name: 'Engineering Mathematics-IV', type: 'Theory', duration_minutes: 180 },
   },
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000003', name: 'SE CMPN', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000202', code: 'DEMO-CMPN-4-02', name: 'Operating Systems', type: 'Theory', duration_minutes: 180 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000202', code: 'CMPN-4-02', name: 'Operating Systems', type: 'Theory', duration_minutes: 180 },
   },
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000003', name: 'SE CMPN', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000203', code: 'DEMO-CMPN-4-L02', name: 'Operating Systems Lab', type: 'Lab', duration_minutes: 120 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000203', code: 'CMPN-4-L02', name: 'Operating Systems Lab', type: 'Lab', duration_minutes: 120 },
   },
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000003', name: 'SE CMPN', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000204', code: 'DEMO-CMPN-4-03', name: 'Computer Networks', type: 'Theory', duration_minutes: 180 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000204', code: 'CMPN-4-03', name: 'Computer Networks', type: 'Theory', duration_minutes: 180 },
   },
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000003', name: 'SE CMPN', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000205', code: 'DEMO-CMPN-4-L03', name: 'Computer Networks Lab', type: 'Lab', duration_minutes: 120 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000205', code: 'CMPN-4-L03', name: 'Computer Networks Lab', type: 'Lab', duration_minutes: 120 },
   },
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000003', name: 'SE CMPN', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000206', code: 'DEMO-CMPN-4-04', name: 'Database Management Systems', type: 'Theory', duration_minutes: 180 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000206', code: 'CMPN-4-04', name: 'Database Management Systems', type: 'Theory', duration_minutes: 180 },
   },
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000003', name: 'SE CMPN', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000207', code: 'DEMO-CMPN-4-L04', name: 'Database Management Systems Lab', type: 'Lab', duration_minutes: 120 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000207', code: 'CMPN-4-L04', name: 'Database Management Systems Lab', type: 'Lab', duration_minutes: 120 },
   },
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000003', name: 'SE CMPN', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000208', code: 'DEMO-CMPN-4-05', name: 'Automata Theory', type: 'Core', duration_minutes: 180 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000208', code: 'CMPN-4-05', name: 'Automata Theory', type: 'Core', duration_minutes: 180 },
   },
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000003', name: 'SE CMPN', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000209', code: 'DEMO-CMPN-4-06', name: 'Object-Oriented Programming', type: 'Theory', duration_minutes: 180 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000209', code: 'CMPN-4-06', name: 'Object-Oriented Programming', type: 'Theory', duration_minutes: 180 },
   },
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000003', name: 'SE CMPN', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000210', code: 'DEMO-CMPN-4-L06', name: 'Object-Oriented Programming Lab', type: 'Lab', duration_minutes: 120 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000210', code: 'CMPN-4-L06', name: 'Object-Oriented Programming Lab', type: 'Lab', duration_minutes: 120 },
   },
 
   // --- Second Year Information Technology (SE INFT - Sem 4) ---
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000005', name: 'SE INFT', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000301', code: 'DEMO-IT-4-01', name: 'Engineering Mathematics-IV', type: 'Theory', duration_minutes: 180 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000301', code: 'IT-4-01', name: 'Engineering Mathematics-IV', type: 'Theory', duration_minutes: 180 },
   },
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000005', name: 'SE INFT', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000302', code: 'DEMO-IT-4-02', name: 'Operating Systems', type: 'Theory', duration_minutes: 180 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000302', code: 'IT-4-02', name: 'Operating Systems', type: 'Theory', duration_minutes: 180 },
   },
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000005', name: 'SE INFT', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000303', code: 'DEMO-IT-4-L02', name: 'Operating Systems Lab', type: 'Lab', duration_minutes: 120 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000303', code: 'IT-4-L02', name: 'Operating Systems Lab', type: 'Lab', duration_minutes: 120 },
   },
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000005', name: 'SE INFT', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000304', code: 'DEMO-IT-4-03', name: 'Computer Networks', type: 'Theory', duration_minutes: 180 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000304', code: 'IT-4-03', name: 'Computer Networks', type: 'Theory', duration_minutes: 180 },
   },
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000005', name: 'SE INFT', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000305', code: 'DEMO-IT-4-L03', name: 'Computer Networks Lab', type: 'Lab', duration_minutes: 120 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000305', code: 'IT-4-L03', name: 'Computer Networks Lab', type: 'Lab', duration_minutes: 120 },
   },
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000005', name: 'SE INFT', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000306', code: 'DEMO-IT-4-04', name: 'Database Management Systems', type: 'Theory', duration_minutes: 180 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000306', code: 'IT-4-04', name: 'Database Management Systems', type: 'Theory', duration_minutes: 180 },
   },
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000005', name: 'SE INFT', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000307', code: 'DEMO-IT-4-L04', name: 'Database Management Systems Lab', type: 'Lab', duration_minutes: 120 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000307', code: 'IT-4-L04', name: 'Database Management Systems Lab', type: 'Lab', duration_minutes: 120 },
   },
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000005', name: 'SE INFT', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000308', code: 'DEMO-IT-4-05', name: 'Automata Theory', type: 'Core', duration_minutes: 180 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000308', code: 'IT-4-05', name: 'Automata Theory', type: 'Core', duration_minutes: 180 },
   },
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000005', name: 'SE INFT', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000309', code: 'DEMO-IT-4-06', name: 'Python Programming', type: 'Theory', duration_minutes: 180 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000309', code: 'IT-4-06', name: 'Python Programming', type: 'Theory', duration_minutes: 180 },
   },
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000005', name: 'SE INFT', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000310', code: 'DEMO-IT-4-L06', name: 'Python Programming Lab', type: 'Lab', duration_minutes: 120 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000310', code: 'IT-4-L06', name: 'Python Programming Lab', type: 'Lab', duration_minutes: 120 },
   },
 
   // --- Third Year Computer Engineering (TE CMPN - Sem 6) ---
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000006', name: 'TE CMPN', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000401', code: 'DEMO-CMPN-6-01', name: 'Artificial Intelligence', type: 'Theory', duration_minutes: 180 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000401', code: 'CMPN-6-01', name: 'Artificial Intelligence', type: 'Theory', duration_minutes: 180 },
   },
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000006', name: 'TE CMPN', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000402', code: 'DEMO-CMPN-6-02', name: 'Web Technologies', type: 'Theory', duration_minutes: 180 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000402', code: 'CMPN-6-02', name: 'Web Technologies', type: 'Theory', duration_minutes: 180 },
   },
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000006', name: 'TE CMPN', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000403', code: 'DEMO-CMPN-6-L02', name: 'Web Technologies Lab', type: 'Lab', duration_minutes: 120 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000403', code: 'CMPN-6-L02', name: 'Web Technologies Lab', type: 'Lab', duration_minutes: 120 },
   },
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000006', name: 'TE CMPN', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000404', code: 'DEMO-CMPN-6-03', name: 'Computer Graphics', type: 'Theory', duration_minutes: 180 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000404', code: 'CMPN-6-03', name: 'Computer Graphics', type: 'Theory', duration_minutes: 180 },
   },
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000006', name: 'TE CMPN', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000405', code: 'DEMO-CMPN-6-L03', name: 'Computer Graphics Lab', type: 'Lab', duration_minutes: 120 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000405', code: 'CMPN-6-L03', name: 'Computer Graphics Lab', type: 'Lab', duration_minutes: 120 },
   },
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000006', name: 'TE CMPN', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000406', code: 'DEMO-CMPN-6-04', name: 'Software Testing', type: 'Theory', duration_minutes: 180 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000406', code: 'CMPN-6-04', name: 'Software Testing', type: 'Theory', duration_minutes: 180 },
   },
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000006', name: 'TE CMPN', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000407', code: 'DEMO-CMPN-6-L04', name: 'Software Testing Lab', type: 'Lab', duration_minutes: 120 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000407', code: 'CMPN-6-L04', name: 'Software Testing Lab', type: 'Lab', duration_minutes: 120 },
   },
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000006', name: 'TE CMPN', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000408', code: 'DEMO-CMPN-6-05', name: 'Professional Elective-II', type: 'Core', duration_minutes: 180 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000408', code: 'CMPN-6-05', name: 'Professional Elective-II', type: 'Core', duration_minutes: 180 },
   },
 
   // --- Third Year Information Technology (TE INFT - Sem 6) ---
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000007', name: 'TE INFT', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000501', code: 'DEMO-IT-6-01', name: 'Cloud Computing', type: 'Theory', duration_minutes: 180 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000501', code: 'IT-6-01', name: 'Cloud Computing', type: 'Theory', duration_minutes: 180 },
   },
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000007', name: 'TE INFT', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000502', code: 'DEMO-IT-6-L01', name: 'Cloud Computing Lab', type: 'Lab', duration_minutes: 120 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000502', code: 'IT-6-L01', name: 'Cloud Computing Lab', type: 'Lab', duration_minutes: 120 },
   },
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000007', name: 'TE INFT', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000503', code: 'DEMO-IT-6-02', name: 'Software Testing and Quality Assurance', type: 'Theory', duration_minutes: 180 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000503', code: 'IT-6-02', name: 'Software Testing and Quality Assurance', type: 'Theory', duration_minutes: 180 },
   },
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000007', name: 'TE INFT', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000504', code: 'DEMO-IT-6-L02', name: 'Software Testing and QA Lab', type: 'Lab', duration_minutes: 120 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000504', code: 'IT-6-L02', name: 'Software Testing and QA Lab', type: 'Lab', duration_minutes: 120 },
   },
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000007', name: 'TE INFT', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000505', code: 'DEMO-IT-6-03', name: 'DevOps', type: 'Theory', duration_minutes: 180 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000505', code: 'IT-6-03', name: 'DevOps', type: 'Theory', duration_minutes: 180 },
   },
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000007', name: 'TE INFT', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000506', code: 'DEMO-IT-6-L03', name: 'DevOps Lab', type: 'Lab', duration_minutes: 120 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000506', code: 'IT-6-L03', name: 'DevOps Lab', type: 'Lab', duration_minutes: 120 },
   },
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000007', name: 'TE INFT', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000507', code: 'DEMO-IT-6-04', name: 'Information Security', type: 'Theory', duration_minutes: 180 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000507', code: 'IT-6-04', name: 'Information Security', type: 'Theory', duration_minutes: 180 },
   },
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000007', name: 'TE INFT', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000508', code: 'DEMO-IT-6-05', name: 'Professional Elective-II', type: 'Core', duration_minutes: 180 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000508', code: 'IT-6-05', name: 'Professional Elective-II', type: 'Core', duration_minutes: 180 },
   },
 
   // --- Third Year Electronics & Telecom (TE EXTC - Sem 6) ---
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000008', name: 'TE EXTC', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000601', code: 'DEMO-EXTC-6-01', name: 'Digital Signal Processing', type: 'Theory', duration_minutes: 180 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000601', code: 'EXTC-6-01', name: 'Digital Signal Processing', type: 'Theory', duration_minutes: 180 },
   },
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000008', name: 'TE EXTC', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000602', code: 'DEMO-EXTC-6-L01', name: 'Digital Signal Processing Lab', type: 'Lab', duration_minutes: 120 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000602', code: 'EXTC-6-L01', name: 'Digital Signal Processing Lab', type: 'Lab', duration_minutes: 120 },
   },
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000008', name: 'TE EXTC', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000603', code: 'DEMO-EXTC-6-02', name: 'Wireless Communication', type: 'Theory', duration_minutes: 180 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000603', code: 'EXTC-6-02', name: 'Wireless Communication', type: 'Theory', duration_minutes: 180 },
   },
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000008', name: 'TE EXTC', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000604', code: 'DEMO-EXTC-6-L02', name: 'Wireless Communication Lab', type: 'Lab', duration_minutes: 120 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000604', code: 'EXTC-6-L02', name: 'Wireless Communication Lab', type: 'Lab', duration_minutes: 120 },
   },
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000008', name: 'TE EXTC', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000605', code: 'DEMO-EXTC-6-03', name: 'Embedded Systems', type: 'Theory', duration_minutes: 180 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000605', code: 'EXTC-6-03', name: 'Embedded Systems', type: 'Theory', duration_minutes: 180 },
   },
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000008', name: 'TE EXTC', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000606', code: 'DEMO-EXTC-6-L03', name: 'Embedded Systems Lab', type: 'Lab', duration_minutes: 120 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000606', code: 'EXTC-6-L03', name: 'Embedded Systems Lab', type: 'Lab', duration_minutes: 120 },
   },
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000008', name: 'TE EXTC', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000607', code: 'DEMO-EXTC-6-04', name: 'Antenna and Wave Propagation', type: 'Theory', duration_minutes: 180 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000607', code: 'EXTC-6-04', name: 'Antenna and Wave Propagation', type: 'Theory', duration_minutes: 180 },
   },
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000008', name: 'TE EXTC', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000608', code: 'DEMO-EXTC-6-05', name: 'Professional Elective-II', type: 'Core', duration_minutes: 180 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000608', code: 'EXTC-6-05', name: 'Professional Elective-II', type: 'Core', duration_minutes: 180 },
   },
 
   // --- Final Year (BE CMPN & EXTC - Sem 8) ---
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000009', name: 'BE CMPN', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000701', code: 'DEMO-CMPN-8-01', name: 'Professional Elective-V', type: 'Theory', duration_minutes: 180 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000701', code: 'CMPN-8-01', name: 'Professional Elective-V', type: 'Theory', duration_minutes: 180 },
   },
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000009', name: 'BE CMPN', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000702', code: 'DEMO-CMPN-8-02', name: 'Professional Elective-VI', type: 'Theory', duration_minutes: 180 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000702', code: 'CMPN-8-02', name: 'Professional Elective-VI', type: 'Theory', duration_minutes: 180 },
   },
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000009', name: 'BE CMPN', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000703', code: 'DEMO-CMPN-8-04', name: 'Major Project-II Viva & Practical', type: 'Lab', duration_minutes: 120 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000703', code: 'CMPN-8-04', name: 'Major Project-II Viva & Practical', type: 'Lab', duration_minutes: 120 },
   },
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000010', name: 'BE EXTC', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000704', code: 'DEMO-EXTC-8-01', name: 'Professional Elective-V', type: 'Theory', duration_minutes: 180 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000704', code: 'EXTC-8-01', name: 'Professional Elective-V', type: 'Theory', duration_minutes: 180 },
   },
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000010', name: 'BE EXTC', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000705', code: 'DEMO-EXTC-8-02', name: 'Professional Elective-VI', type: 'Theory', duration_minutes: 180 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000705', code: 'EXTC-8-02', name: 'Professional Elective-VI', type: 'Theory', duration_minutes: 180 },
   },
   {
     classes: { id: 'a1000000-0000-0000-0000-000000000010', name: 'BE EXTC', division: 'A', academic_year: '2025–2026' },
-    subjects: { id: 'b1000000-0000-0000-0000-000000000706', code: 'DEMO-EXTC-8-04', name: 'Major Project-II Viva & Practical', type: 'Lab', duration_minutes: 120 },
+    subjects: { id: 'b1000000-0000-0000-0000-000000000706', code: 'EXTC-8-04', name: 'Major Project-II Viva & Practical', type: 'Lab', duration_minutes: 120 },
   },
 ];
 

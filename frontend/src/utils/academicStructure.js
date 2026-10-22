@@ -173,3 +173,82 @@ export function getDepartmentFilterOptions(items = []) {
     ...list.map((d) => ({ label: d.label, value: d.code })),
   ];
 }
+
+/**
+ * Strips obsolete DEMO prefix from subject codes.
+ */
+export function cleanSubjectCode(code = '') {
+  if (!code) return '';
+  return code.replace(/^DEMO-/i, '').trim();
+}
+
+/**
+ * Accurately infers academic year (FE, SE, TE, BE) for any subject object.
+ */
+export function inferSubjectYear(sub = {}) {
+  if (!sub) return 'FE';
+  if (sub.year && ['FE', 'SE', 'TE', 'BE'].includes(sub.year.toUpperCase())) {
+    return sub.year.toUpperCase();
+  }
+
+  // Check applicableClasses
+  if (Array.isArray(sub.applicableClasses)) {
+    for (const cls of sub.applicableClasses) {
+      if (typeof cls === 'string') {
+        const m = cls.match(/^(FE|SE|TE|BE)\b/i);
+        if (m) return m[1].toUpperCase();
+      }
+    }
+  }
+
+  // Check className
+  if (sub.className) {
+    const m = sub.className.match(/^(FE|SE|TE|BE)\b/i);
+    if (m) return m[1].toUpperCase();
+  }
+
+  const rawCode = (sub.code || '').toUpperCase();
+  const cleanCode = cleanSubjectCode(rawCode);
+
+  if (cleanCode.startsWith('FE') || cleanCode.includes('-FE-') || cleanCode.includes('-1-') || cleanCode.includes('-2-')) {
+    return 'FE';
+  }
+  if (cleanCode.startsWith('SE') || cleanCode.includes('-SE-') || cleanCode.includes('-3-') || cleanCode.includes('-4-')) {
+    return 'SE';
+  }
+  if (cleanCode.startsWith('TE') || cleanCode.includes('-TE-') || cleanCode.includes('-5-') || cleanCode.includes('-6-')) {
+    return 'TE';
+  }
+  if (cleanCode.startsWith('BE') || cleanCode.includes('-BE-') || cleanCode.includes('-7-') || cleanCode.includes('-8-')) {
+    return 'BE';
+  }
+
+  return 'FE';
+}
+
+/**
+ * Accurately infers engineering department for any subject object.
+ */
+export function inferSubjectDept(sub = {}) {
+  if (!sub) return 'General';
+  if (sub.department && sub.department !== 'General') {
+    return sub.department;
+  }
+
+  const rawCode = (sub.code || '').toUpperCase();
+  const cleanCode = cleanSubjectCode(rawCode);
+
+  if (cleanCode.includes('CMPN') || cleanCode.includes('CS') || cleanCode.includes('CP')) return 'CMPN';
+  if (cleanCode.includes('INFT') || cleanCode.includes('IT')) return 'INFT';
+  if (cleanCode.includes('EXTC') || cleanCode.includes('EX') || cleanCode.includes('ETRX')) return 'EXTC';
+  if (cleanCode.includes('BIOM') || cleanCode.includes('BM')) return 'BIOM';
+  if (cleanCode.includes('FE') || cleanCode.includes('APPLIED')) return 'Applied Sciences';
+
+  if (sub.className) {
+    const parsed = parseYearAndDept(sub.className);
+    if (parsed.department && parsed.department !== 'General') return parsed.department;
+  }
+
+  return 'General';
+}
+

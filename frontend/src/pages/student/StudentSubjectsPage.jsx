@@ -30,7 +30,7 @@ export function StudentSubjectsPage() {
       try {
         setLoading(true);
         const [subRes, profRes] = await Promise.all([
-          studentPortalService.getRegisteredSubjects(user?.id),
+          studentPortalService.getRegisteredSubjects(user?.id, user?.email, user?.user_metadata),
           studentPortalService.getProfile(user?.id, user?.email, user?.user_metadata),
         ]);
         if (subRes.data && subRes.data.length > 0) setSubjects(subRes.data);
@@ -132,7 +132,7 @@ export function StudentSubjectsPage() {
     <div className="admin-page-content student-subjects-page">
       <PageHeader
         title="My Registered Subjects"
-        subtitle={`Academic curriculum modules enrolled for ${studentInfo?.term || STUDENT_PROFILE.term} • ${studentInfo?.className || STUDENT_PROFILE.className} (${studentInfo?.division || STUDENT_PROFILE.division})`}
+        subtitle={`Academic curriculum modules enrolled for ${studentInfo?.term || STUDENT_PROFILE.term} • ${studentInfo?.className || 'TE INFT'}${studentInfo?.division ? ` (${studentInfo.division})` : ''}`}
         category="Curriculum"
         actions={
           <div className="view-toggle-group">
@@ -218,7 +218,7 @@ export function StudentSubjectsPage() {
               </div>
 
               <div className="subject-card-footer">
-                <span className="cohort-tag">{studentInfo?.className || STUDENT_PROFILE.className} ({studentInfo?.division || STUDENT_PROFILE.division})</span>
+                <span className="cohort-tag">{studentInfo?.className || 'TE INFT'}{studentInfo?.division ? ` (${studentInfo.division})` : ''}</span>
               </div>
             </div>
           ))}

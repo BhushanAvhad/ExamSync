@@ -5,7 +5,13 @@ import {
   STUDENT_SUBJECTS,
   INITIAL_STUDENT_NOTIFICATIONS,
 } from '../data/studentDemoData';
-import { INITIAL_TIMETABLE } from '../data/adminDemoData';
+import { INITIAL_TIMETABLE, INITIAL_SUBJECTS } from '../data/adminDemoData';
+import {
+  parseYearAndDept,
+  inferSubjectYear,
+  inferSubjectDept,
+  cleanSubjectCode,
+} from '../utils/academicStructure';
 
 /**
  * Format an email address into a human-readable title-cased name.
@@ -82,16 +88,17 @@ export const studentPortalService = {
     const resolvedClass =
       matchedRoster?.className ||
       userMetadata?.class_name ||
-      userMetadata?.department ||
+      (userMetadata?.academic_year && userMetadata?.branch
+        ? (userMetadata.academic_year === 'FE' ? 'FE' : `${userMetadata.academic_year} ${userMetadata.branch}`)
+        : null) ||
       dbProfile?.department ||
-      'TE CMPN';
+      userMetadata?.department ||
+      'TE INFT';
 
-    const resolvedDiv =
-      matchedRoster?.division
-        ? (matchedRoster.division.startsWith('Div') ? matchedRoster.division : `Division ${matchedRoster.division}`)
-        : userMetadata?.division
-        ? (userMetadata.division.startsWith('Div') ? userMetadata.division : `Division ${userMetadata.division}`)
-        : 'Division A';
+    const rawDiv = matchedRoster?.division || userMetadata?.division;
+    const resolvedDiv = rawDiv
+      ? (rawDiv.startsWith('Div') ? rawDiv : `Division ${rawDiv}`)
+      : '';
 
     const resolvedId =
       matchedRoster?.id ||
@@ -176,10 +183,108 @@ export const studentPortalService = {
   },
 
   /**
-   * Fetch personalized student exam timetable for enrolled subjects.
+   * Fetch personalized student exam timetable strictly for enrolled cohort.
+   * Reflects newly generated institutional timetable immediately.
    */
-  async getStudentTimetable(userId, fallbackEmail = null) {
-    // 1. Try Supabase first if available
+  async getStudentTimetable(userId, fallbackEmail = null, userMetadata = null) {
+    let studentClass = 'TE INFT';
+    let studentYear = 'TE';
+    let studentDept = 'INFT';
+
+    try {
+      const profileRes = await this.getProfile(userId, fallbackEmail, userMetadata);
+      if (profileRes.data?.className) {
+        studentClass = profileRes.data.className;
+      }
+      const parsed = parseYearAndDept(studentClass);
+      studentYear = parsed.year;
+      studentDept = parsed.department;
+    } catch (_) {}
+
+    const matchesCohort = (item) => {
+      if (!item) return false;
+      const rawCode = item.subjectCode || item.code || '';
+      const cleanCode = cleanSubjectCode(rawCode);
+      const parsedItem = parseYearAndDept(item.className || item.cohort || '');
+      const itemYear = (item.year || parsedItem.year || inferSubjectYear({ ...item, code: cleanCode }) || '').toUpperCase();
+      const itemDept = (item.department || parsedItem.department || inferSubjectDept({ ...item, code: cleanCode }) || '').toUpperCase();
+      const sYear = (studentYear || '').toUpperCase();
+      const sDept = (studentDept || '').toUpperCase();
+
+      // If student is FE
+      if (sYear === 'FE') {
+        return itemYear === 'FE' || cleanCode.startsWith('FE');
+      }
+
+      // If student is NOT FE, exclude FE
+      if (itemYear === 'FE' || cleanCode.startsWith('FE')) {
+        return false;
+      }
+
+      // Year check (SE, TE, BE)
+      if (itemYear && sYear && itemYear !== sYear) {
+        return false;
+      }
+
+      // Department check
+      const deptMatches =
+        itemDept === sDept ||
+        (sDept.includes('INFT') && (itemDept.includes('INFT') || itemDept.includes('IT') || cleanCode.includes('IT'))) ||
+        (sDept.includes('CMPN') && (itemDept.includes('CMPN') || itemDept.includes('CP') || itemDept.includes('CS') || cleanCode.includes('CMPN') || cleanCode.includes('CSC'))) ||
+        (sDept.includes('EXTC') && (itemDept.includes('EXTC') || itemDept.includes('EX') || cleanCode.includes('EXTC'))) ||
+        (sDept.includes('BIOM') && (itemDept.includes('BIOM') || itemDept.includes('BM') || cleanCode.includes('BIOM'))) ||
+        (item.className && item.className.toUpperCase().includes(sYear) && item.className.toUpperCase().includes(sDept));
+
+      return deptMatches;
+    };
+
+    const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+    // 1. Check generated timetable from localStorage so newly generated timetable reflects on student login
+    try {
+      const activePub = localStorage.getItem('examsync_active_timetable_published');
+      const isPublished = activePub ? JSON.parse(activePub).isPublished : true;
+      const rawLocal = localStorage.getItem('examsync_timetable_data');
+
+      if (rawLocal) {
+        const parsed = JSON.parse(rawLocal);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const matching = parsed.filter(matchesCohort);
+          if (matching.length > 0) {
+            const mapped = matching.map((t) => {
+              const examDateObj = new Date(t.date);
+              const dayName = isNaN(examDateObj) ? 'Exam Day' : (daysOfWeek[examDateObj.getDay()] || 'Exam Day');
+              const startFmt = t.timeSlot ? t.timeSlot.split('—')[0].trim() : '09:00';
+              const endFmt = t.timeSlot ? (t.timeSlot.split('—')[1]?.trim() || '12:00') : '12:00';
+              const cleanCode = cleanSubjectCode(t.subjectCode);
+
+              return {
+                id: t.id,
+                date: t.date,
+                day: dayName,
+                subjectCode: cleanCode || 'CSC301',
+                subjectName: t.subjectName || 'Course Unit',
+                startTime: startFmt,
+                endTime: endFmt,
+                timeSlot: t.timeSlot || `${startFmt} — ${endFmt}`,
+                room: t.room || 'A101',
+                location: 'Academic Hall / Laboratory',
+                duration: t.duration || '3.0 Hours',
+                type: 'Core',
+                status: isPublished ? 'Published' : (t.status || 'Scheduled'),
+                seatNumber: 'Assigned on Entrance',
+                isPublished,
+                className: t.className || studentClass,
+              };
+            });
+
+            return { data: mapped, error: null };
+          }
+        }
+      }
+    } catch (_) {}
+
+    // 2. Check Supabase if available
     if (supabase && userId) {
       try {
         const { data, error } = await supabase
@@ -193,130 +298,73 @@ export const studentPortalService = {
             status,
             is_published,
             subjects ( id, code, name, type ),
+            classes ( id, name, division, academic_year ),
             exam_rooms ( id, room_number, location )
           `)
           .eq('is_published', true)
           .order('exam_date', { ascending: true });
 
         if (!error && data && data.length > 0) {
-          const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-          const mapped = data.map((t) => {
-            const examDateObj = new Date(t.exam_date);
-            const dayName = daysOfWeek[examDateObj.getDay()] || 'Exam Day';
-            const startFmt = t.start_time?.slice(0, 5) || '09:00';
-            const endFmt = t.end_time?.slice(0, 5) || '12:00';
-
-            return {
-              id: t.id,
-              date: t.exam_date,
-              day: dayName,
-              subjectCode: t.subjects?.code || 'FEC101',
-              subjectName: t.subjects?.name || 'Examination Subject',
-              startTime: startFmt,
-              endTime: endFmt,
-              timeSlot: `${startFmt} — ${endFmt}`,
-              room: t.exam_rooms?.room_number || 'A101',
-              location: t.exam_rooms?.location || 'Block A, 1st Floor',
-              duration: `${(t.duration_minutes / 60).toFixed(1)} Hours`,
-              type: t.subjects?.type || 'Core',
-              status: t.status || 'Published',
-              seatNumber: 'Assigned on Entrance',
-              isPublished: true,
+          const supabaseFiltered = data.filter((t) => {
+            const item = {
+              subjectCode: t.subjects?.code,
+              className: t.classes?.name,
+              year: t.classes?.academic_year,
             };
+            return matchesCohort(item);
           });
 
-          return { data: mapped, error: null };
-        }
-      } catch (e) {
-        // Fall back to local preview
-      }
-    }
+          if (supabaseFiltered.length > 0) {
+            const mapped = supabaseFiltered.map((t) => {
+              const examDateObj = new Date(t.exam_date);
+              const dayName = daysOfWeek[examDateObj.getDay()] || 'Exam Day';
+              const startFmt = t.start_time?.slice(0, 5) || '09:00';
+              const endFmt = t.end_time?.slice(0, 5) || '12:00';
+              const cleanCode = cleanSubjectCode(t.subjects?.code);
 
-    // 2. Check local preview published session data
-    try {
-      const activePub = localStorage.getItem('examsync_active_timetable_published');
-      const isPublished = activePub ? JSON.parse(activePub).isPublished : false;
-      const rawLocal = localStorage.getItem('examsync_timetable_data');
+              return {
+                id: t.id,
+                date: t.exam_date,
+                day: dayName,
+                subjectCode: cleanCode || 'FEC101',
+                subjectName: t.subjects?.name || 'Examination Subject',
+                startTime: startFmt,
+                endTime: endFmt,
+                timeSlot: `${startFmt} — ${endFmt}`,
+                room: t.exam_rooms?.room_number || 'A101',
+                location: t.exam_rooms?.location || 'Block A, 1st Floor',
+                duration: `${(t.duration_minutes / 60).toFixed(1)} Hours`,
+                type: t.subjects?.type || 'Core',
+                status: t.status || 'Published',
+                seatNumber: 'Assigned on Entrance',
+                isPublished: true,
+                className: t.classes?.name || studentClass,
+              };
+            });
 
-      if (rawLocal) {
-        const parsed = JSON.parse(rawLocal);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          // Resolve student class to personalize the timetable if possible
-          let targetClass = 'TE CMPN';
-          try {
-            const profileRes = await this.getProfile(userId, fallbackEmail);
-            if (profileRes.data?.className) {
-              targetClass = profileRes.data.className;
-            }
-          } catch (_) {}
-
-          // Filter for student's class if cohort tagging exists
-          const matchingCohort = parsed.filter((t) => {
-            if (!t.className) return true;
-            return t.className.includes(targetClass) || targetClass.includes(t.className);
-          });
-
-          const pool = matchingCohort.length > 0 ? matchingCohort : parsed;
-          const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-          const mapped = pool.map((t) => {
-            const examDateObj = new Date(t.date);
-            const dayName = isNaN(examDateObj) ? 'Exam Day' : (daysOfWeek[examDateObj.getDay()] || 'Exam Day');
-            const startFmt = t.timeSlot ? t.timeSlot.split('—')[0].trim() : '09:00';
-            const endFmt = t.timeSlot ? (t.timeSlot.split('—')[1]?.trim() || '12:00') : '12:00';
-
-            return {
-              id: t.id,
-              date: t.date,
-              day: dayName,
-              subjectCode: t.subjectCode || 'CSC301',
-              subjectName: t.subjectName || 'Course Unit',
-              startTime: startFmt,
-              endTime: endFmt,
-              timeSlot: t.timeSlot || `${startFmt} — ${endFmt}`,
-              room: t.room || 'A101',
-              location: 'Academic Hall / Laboratory',
-              duration: t.duration || '3.0 Hours',
-              type: 'Core',
-              status: isPublished ? 'Published' : (t.status || 'Scheduled'),
-              seatNumber: 'Assigned on Entrance',
-              isPublished,
-            };
-          });
-
-          if (mapped.length > 0) {
             return { data: mapped, error: null };
           }
         }
+      } catch (e) {
+        // Fall back below
       }
+    }
 
-      // Fallback to INITIAL_TIMETABLE filtered by student's class
-      let targetClass = 'TE CMPN';
-      try {
-        const profileRes = await this.getProfile(userId, fallbackEmail);
-        if (profileRes.data?.className) {
-          targetClass = profileRes.data.className;
-        }
-      } catch (_) {}
-
-      const initialMatches = INITIAL_TIMETABLE.filter((t) => {
-        if (!t.className) return true;
-        return t.className.toLowerCase().includes(targetClass.toLowerCase()) ||
-               targetClass.toLowerCase().includes(t.className.toLowerCase());
-      });
-
-      const fallbackPool = initialMatches.length > 0 ? initialMatches : INITIAL_TIMETABLE;
-      const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-      const fallbackMapped = fallbackPool.map((t, idx) => {
+    // 3. Fallback to INITIAL_TIMETABLE strictly filtered by student's cohort!
+    const initialMatches = INITIAL_TIMETABLE.filter(matchesCohort);
+    if (initialMatches.length > 0) {
+      const fallbackMapped = initialMatches.map((t, idx) => {
         const examDateObj = new Date(t.date);
         const dayName = isNaN(examDateObj) ? 'Exam Day' : (daysOfWeek[examDateObj.getDay()] || 'Exam Day');
         const startFmt = t.timeSlot ? t.timeSlot.split('—')[0].trim() : '09:00';
         const endFmt = t.timeSlot ? (t.timeSlot.split('—')[1]?.trim() || '12:00') : '12:00';
+        const cleanCode = cleanSubjectCode(t.subjectCode);
 
         return {
           id: t.id || `STT-${idx + 1}`,
           date: t.date,
           day: dayName,
-          subjectCode: t.subjectCode || 'FEC101',
+          subjectCode: cleanCode || 'FEC101',
           subjectName: t.subjectName || 'Course Unit',
           startTime: startFmt,
           endTime: endFmt,
@@ -325,32 +373,56 @@ export const studentPortalService = {
           location: 'Academic Hall / Laboratory',
           duration: t.duration || '3.0 Hours',
           type: 'Core',
-          status: isPublished ? 'Published' : (t.status || 'Scheduled'),
+          status: 'Published',
           seatNumber: 'Assigned on Entrance',
-          isPublished,
+          isPublished: true,
+          className: t.className || studentClass,
         };
       });
 
-      return {
-        data: fallbackMapped,
-        error: null,
-      };
-    } catch (err) {
-      // ignore
+      return { data: fallbackMapped, error: null };
     }
 
-    return { data: STUDENT_TIMETABLE_ENTRIES, error: null };
+    return { data: [], error: null };
   },
 
   /**
-   * Fetch registered subjects for this student based on year, branch, and timetable.
+   * Fetch registered subjects for this student based on year, branch, and curriculum.
    */
-  async getRegisteredSubjects(userId, fallbackEmail = null) {
-    let resolvedClass = 'TE CMPN';
+  async getRegisteredSubjects(userId, fallbackEmail = null, userMetadata = null) {
+    let studentClass = 'TE INFT';
+    let studentYear = 'TE';
+    let studentDept = 'INFT';
+
     try {
-      const prof = await this.getProfile(userId, fallbackEmail);
-      if (prof.data?.className) resolvedClass = prof.data.className;
+      const prof = await this.getProfile(userId, fallbackEmail, userMetadata);
+      if (prof.data?.className) studentClass = prof.data.className;
+      const parsed = parseYearAndDept(studentClass);
+      studentYear = parsed.year;
+      studentDept = parsed.department;
     } catch (_) {}
+
+    const matchesCohort = (s) => {
+      if (!s) return false;
+      const cleanCode = cleanSubjectCode(s.code);
+      const itemYear = (s.year || inferSubjectYear({ ...s, code: cleanCode }) || '').toUpperCase();
+      const itemDept = (s.department || inferSubjectDept({ ...s, code: cleanCode }) || '').toUpperCase();
+      const sYear = (studentYear || '').toUpperCase();
+      const sDept = (studentDept || '').toUpperCase();
+
+      if (sYear === 'FE') return itemYear === 'FE' || cleanCode.startsWith('FE');
+      if (itemYear === 'FE' || cleanCode.startsWith('FE')) return false;
+      if (itemYear && sYear && itemYear !== sYear) return false;
+
+      return (
+        itemDept === sDept ||
+        (sDept.includes('INFT') && (itemDept.includes('INFT') || itemDept.includes('IT') || cleanCode.includes('IT'))) ||
+        (sDept.includes('CMPN') && (itemDept.includes('CMPN') || itemDept.includes('CP') || itemDept.includes('CS') || cleanCode.includes('CMPN'))) ||
+        (sDept.includes('EXTC') && (itemDept.includes('EXTC') || itemDept.includes('EX') || cleanCode.includes('EXTC'))) ||
+        (sDept.includes('BIOM') && (itemDept.includes('BIOM') || itemDept.includes('BM') || cleanCode.includes('BIOM'))) ||
+        (s.applicableClasses && s.applicableClasses.some((ac) => ac.toUpperCase().includes(sYear) && ac.toUpperCase().includes(sDept)))
+      );
+    };
 
     // 1. Check local subjects store if available
     try {
@@ -358,30 +430,28 @@ export const studentPortalService = {
       if (rawSubjects) {
         const parsed = JSON.parse(rawSubjects);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          const matching = parsed.filter((s) => {
-            if (!s.applicableClasses || s.applicableClasses.length === 0) return true;
-            return s.applicableClasses.some((ac) => ac.includes(resolvedClass) || resolvedClass.includes(ac.replace(/\s*\([A-Z]\)/, '').trim()));
-          });
-
-          const pool = matching.length > 0 ? matching : parsed;
-          const mapped = pool.map((s, idx) => ({
-            id: s.id || `SUB-${idx + 1}`,
-            code: s.code,
-            name: s.name,
-            type: s.type || 'Core Academic Unit',
-            credits: s.credits || 3,
-            instructor: s.instructor || 'VIT Faculty',
-            examDate: 'Scheduled in Session',
-            examTime: s.duration || 'Check Timetable',
-            venue: 'Assigned Hall',
-            seatNumber: 'Desk TBD',
-            status: 'Confirmed',
-          }));
-          return { data: mapped, error: null };
+          const matching = parsed.filter(matchesCohort);
+          if (matching.length > 0) {
+            const mapped = matching.map((s, idx) => ({
+              id: s.id || `SUB-${idx + 1}`,
+              code: cleanSubjectCode(s.code),
+              name: s.name,
+              type: s.type || 'Core Academic Unit',
+              credits: s.credits || 3,
+              instructor: s.instructor || 'VIT Faculty',
+              examDate: 'Scheduled in Session',
+              examTime: s.duration || 'Check Timetable',
+              venue: 'Assigned Hall',
+              seatNumber: 'Desk TBD',
+              status: 'Confirmed',
+            }));
+            return { data: mapped, error: null };
+          }
         }
       }
     } catch (_) {}
 
+    // 2. Check Supabase
     if (supabase && userId) {
       try {
         const { data, error } = await supabase
@@ -390,27 +460,47 @@ export const studentPortalService = {
           .order('code', { ascending: true });
 
         if (!error && data && data.length > 0) {
-          const mapped = data.map((s) => ({
-            id: s.id,
-            code: s.code,
-            name: s.name,
-            type: s.type || 'Core Academic Unit',
-            credits: s.credits || 3,
-            instructor: s.instructor || 'VIT Faculty',
-            examDate: 'Scheduled in Session',
-            examTime: 'Check Timetable',
-            venue: 'Assigned Hall',
-            seatNumber: 'Desk TBD',
-            status: 'Confirmed',
-          }));
-          return { data: mapped, error: null };
+          const matching = data.filter(matchesCohort);
+          if (matching.length > 0) {
+            const mapped = matching.map((s) => ({
+              id: s.id,
+              code: cleanSubjectCode(s.code),
+              name: s.name,
+              type: s.type || 'Core Academic Unit',
+              credits: s.credits || 3,
+              instructor: s.instructor || 'VIT Faculty',
+              examDate: 'Scheduled in Session',
+              examTime: 'Check Timetable',
+              venue: 'Assigned Hall',
+              seatNumber: 'Desk TBD',
+              status: 'Confirmed',
+            }));
+            return { data: mapped, error: null };
+          }
         }
       } catch (e) {
         // Fall back below
       }
     }
 
-    return { data: STUDENT_SUBJECTS, error: null };
+    // 3. Fallback to INITIAL_SUBJECTS strictly matching cohort
+    const fallbackSubjects = INITIAL_SUBJECTS.filter(matchesCohort);
+    return {
+      data: fallbackSubjects.map((s, idx) => ({
+        id: s.id || `SUB-${idx + 1}`,
+        code: cleanSubjectCode(s.code),
+        name: s.name,
+        type: s.type || 'Core Academic Unit',
+        credits: s.credits || 3,
+        instructor: s.instructor || 'VIT Faculty',
+        examDate: 'Scheduled in Session',
+        examTime: s.duration || 'Check Timetable',
+        venue: 'Assigned Hall',
+        seatNumber: 'Desk TBD',
+        status: 'Confirmed',
+      })),
+      error: null,
+    };
   },
 
   /**
